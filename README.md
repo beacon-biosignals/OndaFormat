@@ -4,7 +4,14 @@
 
 The latest tagged version is v0.1.0. (TODO: put link here once tagged)
 
+This document contains:
+
+- Onda's [Design Principles](#design-principles)
+- Onda's [Specification](#specification)
+
 ## Design Principles
+
+[\[back to top\]](#onda-dataset-format)
 
 ### Onda uses the term...
 
@@ -43,6 +50,8 @@ The latest tagged version is v0.1.0. (TODO: put link here once tagged)
 - ...be simple enough that a decent programmer (with Google access) should be able to fully interpret (and write performant parsers for) an Onda dataset without ever reading Onda documentation.
 
 ## Specification
+
+[\[back to top\]](#onda-dataset-format)
 
 ### Versioning
 
