@@ -184,9 +184,11 @@ samples/
     ⋮
 ```
 
-Each subdirectory in `samples` contains all sample data associated with the recording whose `uuid` field matches the subdirectory's name. Similarly, each file in a `recordings` subdirectory stores the sample data of the signal whose name matches the file's name. This sample data is encoded as specified by the signal's `sample_type` and `sample_resolution_in_unit` fields, serialized to raw LPCM format, and compressed as specified by the signal's `file_extension` field.
+Each subdirectory in `samples` contains all sample data associated with the recording whose `uuid` field matches the subdirectory's name. Similarly, each file in a `recordings` subdirectory stores the sample data of the signal whose name matches the file's name. This sample data is encoded as specified by the signal's `sample_type` and `sample_resolution_in_unit` fields, serialized to raw LPCM format, and formatted as specified by the signal's `file_extension` field.
 
-Specifically, the sample data for a signal with `n` channels is serialized such that the byte offset for the `i`th channel value in the `j`th multichannel sample is given by `((i - 1) + (j - 1) * n) * byte_width(signal.sample_type)`. This layout can be expressed in the following table (where `w = byte_width(signal.sample_type)`):
+While Onda explicitly supports arbitrary choice of file format for serialized sample data via the `file_extension` and `file_format_settings` fields, Onda reader/writer implementations should support loading sample data stored in any supported format into the following standardized representation:
+
+Given an `n`-channel signal, the byte offset for the `i`th channel value in the `j`th multichannel sample is given by `((i - 1) + (j - 1) * n) * byte_width(signal.sample_type)`. This layout can be expressed in the following table (where `w = byte_width(signal.sample_type)`):
 
 | Byte Offset                 | Value                                |
 |-----------------------------|--------------------------------------|
