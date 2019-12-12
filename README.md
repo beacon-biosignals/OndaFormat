@@ -154,7 +154,7 @@ Below is a detailed description for each field of a recording object:
         - `"uint64"`: unsigned little-endian 8-byte integer
     - `sample_rate`: The signal's sample rate as an unsigned integer.
     - `file_extension`: The extension of the signal's corresponding file name in the `recordings` directory, indicating the (potentially compressed) format to which the given signal was serialized. All Onda readers/writers must support the following file extensions (and may define and support additional values as desired):
-        - `"raw"`: no compression is used; signals are stored as raw channel-major byte dumps.
+        - `"raw"`: no compression is used; signals are stored in raw interleaved LPCM format (see format description below).
         - `"zst"`: signals are compressed via [`zstd`](https://github.com/facebook/zstd)
     - `file_format_settings`: Either `nil`, or an object where each key-value pair corresponds to a configuration setting for the format indicated by the signal's `file_extension`. If an Onda reader/writer defines a new `file_extension` value, it must also define the valid `file_format_settings` values corresponding to that `file_extension` value. For the standard `"raw"` and `"zst"` file extensions, Onda readers/writers must support the following `file_format_settings` values:
         - `"raw"`: `nil`
@@ -186,7 +186,7 @@ samples/
 
 Each subdirectory in `samples` contains all sample data associated with the recording whose `uuid` field matches the subdirectory's name. Similarly, each file in a `recordings` subdirectory stores the sample data of the signal whose name matches the file's name. This sample data is encoded as specified by the signal's `sample_type` and `sample_resolution_in_unit` fields, serialized to raw LPCM format, and formatted as specified by the signal's `file_extension` field.
 
-While Onda explicitly supports arbitrary choice of file format for serialized sample data via the `file_extension` and `file_format_settings` fields, Onda reader/writer implementations should support loading sample data stored in any supported format into the following standardized representation:
+While Onda explicitly supports arbitrary choice of file format for serialized sample data via the `file_extension` and `file_format_settings` fields, Onda reader/writer implementations should support conversion of sample data from any implementation-supported format into the following standardized "raw" interleaved LPCM representation:
 
 Given an `n`-channel signal, the byte offset for the `i`th channel value in the `j`th multichannel sample is given by `((i - 1) + (j - 1) * n) * byte_width(signal.sample_type)`. This layout can be expressed in the following table (where `w = byte_width(signal.sample_type)`):
 
