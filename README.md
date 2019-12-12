@@ -8,6 +8,7 @@ This document contains:
 
 - Onda's [Design Principles](#design-principles)
 - Onda's [Specification](#specification)
+- [Potential Alternative Technologies/Approaches](#potential-alternatives)
 
 ## Design Principles
 
@@ -209,3 +210,25 @@ Given an `n`-channel signal, the byte offset for the `i`th channel value in the 
 | ...                         | ...                                  |
 
 An individual value in a multichannel sample can be "encoded" from its representation in canonical units to its integer representation via division by the signal's `sample_resolution_in_unit` (followed/preceded by whatever quantization strategy is chosen by the user, e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be "decoded" from its integer representation to its representation in canonical units via multiplication by the signal's `sample_resolution_in_unit`.
+
+## Potential Alternatives
+
+[\[back to top\]](#onda-dataset-format)
+
+In this section, we describe several alternative technologies/solutions considered during Onda's design.
+
+- HDF5: HDF5 was considered as an alternative to filesystem storage for Onda recording metadata and raw signal artifacts. While featureful, ubiquitous, and technically based on an open standard, HDF5 is [infamous for being a hefty dependency with a fairly complex reference implementation](https://cyrille.rossant.net/moving-away-hdf5/). While HDF5 solves many problems inherent to filesystem-based storage, most use cases for Onda involve storing large binary blobs in domain-specific formats that already exist quite naturally as files on a filesystem.
+
+- Avro: Avro was primarily considered as an alternative to one-signal-per-file approach ultimately adopted by Onda, [initially motivated by Uber's use of the format in a manner that was extremely similar to an early Onda prototype's use of NPY](https://eng.uber.com/hdfs-file-format-apache-spark/). Unfortunately, it seems that most of the well-maintained tooling for Avro is Spark-centric; in fact, the overarching Avro project [has struggled (until very recently) to keep a dedicated set of maintainers engaged with the project](https://whimsy.apache.org/board/minutes/Avro.html). Avro's most desirable features, from the perspective of Onda, was its compression and "random" row access. However, early tests indicated that neither of those features worked particularly well for signals of interest compared to domain-specific seekable compression formats like FLAC.
+
+- EDF/MEF/etc.: Onda was originally motivated by bulk electrophysiological dataset manipulation, a domain in which there are many different recording file formats that are all generally designed to support a one-file-per-recording use case and are constrained to certain domain-specific assumptions (e.g. specific bit depth assumptions, annotations stored within signal artifacts, etc.). Technically, since Onda itself is agnostic to choice of file formats used for signal serialization, one could store Onda sample data in MEF/EDF.
+
+- JSON: In early Onda implementations, JSON was used to serialize the `recordings` metadata file. JSON has the advantage of being ubiquitous, simple, flexible, and human-readable, but the performance overhead of textual decoding/encoding was greater than desired for datasets with lots of annotations. In comparison, switching to MessagePack yielded a ~3x performance increase in (de)serialization for practical usage.
+
+- BSON: BSON was considered as a potential serialization format for the `recordings` metadata file. Ultimately, BSON's relative complexity and dissimilarity to JSON were both considered significant downsides compared to MessagePack.
+
+- ProtoBuf/FlatBuffers/etc.: These formats were considered as potential serialization formats for the `recordings` metadata file. These tools were ultimately ruled out in favor of MessagePack, which is much easier to parse (as it doesn't require intermediate code generation and is quite similar to JSON) and was found to be nearly as performant for Onda's particular use case.
+
+- Feather: Feather was briefly explored until it became clear that the format is planned to be deprecated in favor of ["Arrow files"](https://github.com/apache/arrow/blob/5e639059a0330cad256703516996fbed11c8fd83/site/faq.md#what-is-the-difference-between-apache-arrow-and-apache-parquet), which might be rebranded to ["Feather 2.0"](https://issues.apache.org/jira/browse/ARROW-5510) in the future. Future versions of Onda will likely reconsider Arrow as a potential serialization format for the `recordings` metadata file once Arrow has achieved a stable 1.0 release.
+
+- Arrow/Parquet: Early versions of Onda stored `recordings` metadata in Arrow tables serialized to disk as Parquet. Internal usage of these early Onda versions revealed that the C++ implementations of Arrow/Parquet were extremely performant, but that [some features were incomplete](https://issues.apache.org/jira/browse/ARROW-1644) and other front-end bindings/implementations generally lagged behind the C++ implementation in terms of feature parity.
