@@ -2,7 +2,7 @@
 
 **Onda** is a portable format for storing and manipulating sets of multi-sensor, multi-channel, LPCM-encodable, annotated, time-series recordings.
 
-The latest tagged version is [v0.1.0](https://github.com/beacon-biosignals/OndaFormat/tree/v0.1.0).
+The latest tagged version is [v0.2.0](https://github.com/beacon-biosignals/OndaFormat/tree/v0.2.0).
 
 This document contains:
 
@@ -18,7 +18,7 @@ This document contains:
 
 - ...**"LPCM"** to refer to [linear pulse code modulation](https://en.wikipedia.org/wiki/Pulse-code_modulation), a form of signal encoding where multivariate waveforms are digitized as a series of samples uniformly spaced over time and quantized to a uniformly spaced grid.
 
-- ...**"signal"** to mean the digitized output of an individual sensor or process. A signal is comprised of an LPCM encoding, per-channel information, and a series of multi-channel samples represented as a matrix.
+- ...**"signal"** to mean the digitized output of an individual sensor or process. A signal is comprised of an LPCM encoding, per-channel information, and a series of multi-channel samples.
 
 - ...**"recording"** to mean a collection of one or more signals recorded simultaneously over a well-defined time period.
 
@@ -91,7 +91,7 @@ The header object takes the same structure as the following example:
 
 ```
 {
-    "onda_format_version": "v0.1.0",
+    "onda_format_version": "v0.2.0",
     "ordered_keys": false
 }
 ```
@@ -116,8 +116,8 @@ Each `<uuid>: <recording object>` pair in the second MessagePack Map takes the s
             "sample_resolution_in_unit": 0.25,
             "sample_type": "int16",
             "sample_rate": 256,
-            "file_extension": "zst",
-            "file_format_settings": {"level": 1}
+            "file_extension": "lpcm.zst",
+            "file_options": {"level": 1}
         }
         ⋮
     },
@@ -155,11 +155,11 @@ Below is a detailed description for each field of a recording object:
         - `"uint64"`: unsigned little-endian 8-byte integer
     - `sample_rate`: The signal's sample rate as an unsigned integer.
     - `file_extension`: The extension of the signal's corresponding file name in the `recordings` directory, indicating the (potentially compressed) format to which the given signal was serialized. All Onda readers/writers must support the following file extensions (and may define and support additional values as desired):
-        - `"raw"`: no compression is used; signals are stored in raw interleaved LPCM format (see format description below).
-        - `"zst"`: signals are compressed via [`zstd`](https://github.com/facebook/zstd)
-    - `file_format_settings`: Either `nil`, or an object where each key-value pair corresponds to a configuration setting for the format indicated by the signal's `file_extension`. If an Onda reader/writer defines a new `file_extension` value, it must also define the valid `file_format_settings` values corresponding to that `file_extension` value. For the standard `"raw"` and `"zst"` file extensions, Onda readers/writers must support the following `file_format_settings` values:
-        - `"raw"`: `nil`
-        - `"zst"`: `nil`, or `{"level": i}` where 1 <= `i` <= 19
+        - `"lpcm"`: signals are stored in raw interleaved LPCM format (see format description below).
+        - `"lpcm.zst"`: signals stored in raw interleaved LPCM format and compressed via [`zstd`](https://github.com/facebook/zstd)
+    - `file_options`: Either `nil`, or an object where each key-value pair corresponds to a configuration setting for the format indicated by the signal's `file_extension`. If an Onda reader/writer defines a new `file_extension` value, it must also define the valid `file_options` values corresponding to that `file_extension` value. For the standard `"lpcm"` and `"lpcm.zst"` file extensions, Onda readers/writers must support the following `file_options` values:
+        - `"lpcm"`: `nil`
+        - `"lpcm.zst"`: `nil`, or `{"level": i}` where 1 <= `i` <= 19
 - `annotations`: An array of annotation objects. Each annotation is a key-value pair associated with a given time window in the corresponding recording and has the following fields:
     - `key`: The annotation's key as a string.
     - `value`: The annotation's value as a string.
@@ -168,7 +168,7 @@ Below is a detailed description for each field of a recording object:
 
 - `custom`: Either `nil`, or a MessagePack value as specified by the dataset author. This field can be used to store domain-specific metadata for each recording.
 
-Except for the `custom` and `file_format_settings` fields, `nil` values are entirely disallowed in recording objects.
+Except for the `custom` and `file_options` fields, `nil` values are entirely disallowed in recording objects.
 
 ### `samples/`
 
@@ -187,7 +187,7 @@ samples/
 
 Each subdirectory in `samples` contains all sample data associated with the recording whose `uuid` field matches the subdirectory's name. Similarly, each file in a `recordings` subdirectory stores the sample data of the signal whose name matches the file's name. This sample data is encoded as specified by the signal's `sample_type` and `sample_resolution_in_unit` fields, serialized to raw LPCM format, and formatted as specified by the signal's `file_extension` field.
 
-While Onda explicitly supports arbitrary choice of file format for serialized sample data via the `file_extension` and `file_format_settings` fields, Onda reader/writer implementations should support conversion of sample data from any implementation-supported format into the following standardized "raw" interleaved LPCM representation:
+While Onda explicitly supports arbitrary choice of file format for serialized sample data via the `file_extension` and `file_options` fields, Onda reader/writer implementations should support serialization of sample data from any implementation-supported format into the following standardized interleaved LPCM representation:
 
 Given an `n`-channel signal, the byte offset for the `i`th channel value in the `j`th multichannel sample is given by `((i - 1) + (j - 1) * n) * byte_width(signal.sample_type)`. This layout can be expressed in the following table (where `w = byte_width(signal.sample_type)`):
 
@@ -208,6 +208,8 @@ Given an `n`-channel signal, the byte offset for the `i`th channel value in the 
 | ...                         | ...                                  |
 | ((i - 1) + (j - 1) * n) * w | `i`th channel value for `j`th sample |
 | ...                         | ...                                  |
+
+Values are stored in little-endian format.
 
 An individual value in a multichannel sample can be "encoded" from its representation in canonical units to its integer representation via division by the signal's `sample_resolution_in_unit` (followed/preceded by whatever quantization strategy is chosen by the user, e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be "decoded" from its integer representation to its representation in canonical units via multiplication by the signal's `sample_resolution_in_unit`.
 
