@@ -2,7 +2,7 @@
 
 **Onda** is a portable format for storing and manipulating sets of multi-sensor, multi-channel, LPCM-encodable, annotated, time-series recordings.
 
-The latest tagged version is [v0.2.0](https://github.com/beacon-biosignals/OndaFormat/tree/v0.2.0).
+The latest tagged version is [v0.2.1](https://github.com/beacon-biosignals/OndaFormat/tree/v0.2.1).
 
 This document contains:
 
@@ -160,7 +160,7 @@ Below is a detailed description for each field of a recording object:
     - `file_options`: Either `nil`, or an object where each key-value pair corresponds to a configuration setting for the format indicated by the signal's `file_extension`. If an Onda reader/writer defines a new `file_extension` value, it must also define the valid `file_options` values corresponding to that `file_extension` value. For the standard `"lpcm"` and `"lpcm.zst"` file extensions, Onda readers/writers must support the following `file_options` values:
         - `"lpcm"`: `nil`
         - `"lpcm.zst"`: `nil`, or `{"level": i}` where 1 <= `i` <= 19
-- `annotations`: An array of annotation objects. Each annotation is a key-value pair associated with a given time window in the corresponding recording and has the following fields:
+- `annotations`: A set of annotation objects stored as an array. As this array represents a set, it is not permitted to contain duplicate objects (as determined by value-equivalence). For practicality's sake, however, it is preferable for Onda readers to simply ignore duplicates rather than error upon encountering them. Each annotation is a key-value pair associated with a given time window in the corresponding recording and has the following fields:
     - `key`: The annotation's key as a string.
     - `value`: The annotation's value as a string.
     - `start_nanosecond`: The annotation's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
