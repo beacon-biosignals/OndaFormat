@@ -1,6 +1,6 @@
 # Onda Dataset Format
 
-**Onda** is a portable format for storing and manipulating sets of multi-sensor, multi-channel, LPCM-encodable, annotated, time-series recordings.
+**Onda** is a lightweight format for storing and manipulating sets of multi-sensor, multi-channel, LPCM-encodable, annotated, time-series recordings.
 
 The latest tagged version is [v0.2.1](https://github.com/beacon-biosignals/OndaFormat/tree/v0.2.1).
 
@@ -32,12 +32,6 @@ This document contains:
 - ...as a format for sharing datasets comprised of several gigabytes to several terabytes of signal data.
 - ...as a format for sharing datasets comprised of hundreds to hundreds of thousands of recordings.
 
-### Onda is not...
-
-- ...an analytics platform
-- ...a file format
-- ...a database
-
 ### Onda's design must...
 
 - ...depend only upon technologies with standardized, implementation-agnostic specifications that are well-used across multiple application domains.
@@ -49,6 +43,12 @@ This document contains:
 - ...enable metadata, annotations etc. to be stored and processed separately from raw signal artifacts without significant file system overhead.
 - ...enable extensibility without sacrificing interpretability. New signal encodings, annotations, compression formats, etc. should all be user-definable by design.
 - ...be simple enough that a decent programmer (with Google access) should be able to fully interpret (and write performant parsers for) an Onda dataset without ever reading Onda documentation.
+
+### Onda is not...
+
+- ...a file format. Onda allows dataset authors to utilize whatever file format is most appropriate for a given signal, as long as the author provides a mechanism to deserialize sample data from that format to a standardized interleaved LPCM representation.
+- ...a database. The majority of an Onda dataset's mandated metadata is stored in a single, monolithic JSON-like manifest containing recording information, signal descriptions, annotations etc. This simple structure is tailored towards Onda's target regimes (see above), and is not intended to serve as a persistent backend for external services/applications.
+- ...an analytics platform. Onda seeks to provide a data model that is purposefully structured to enable various sorts of analysis, but the format itself does not mandate/describe any specific implementation of analysis utilities.
 
 ## Specification
 
@@ -187,7 +187,7 @@ samples/
 
 Each subdirectory in `samples` contains all sample data associated with the recording whose `uuid` field matches the subdirectory's name. Similarly, each file in a `recordings` subdirectory stores the sample data of the signal whose name matches the file's name. This sample data is encoded as specified by the signal's `sample_type` and `sample_resolution_in_unit` fields, serialized to raw LPCM format, and formatted as specified by the signal's `file_extension` field.
 
-While Onda explicitly supports arbitrary choice of file format for serialized sample data via the `file_extension` and `file_options` fields, Onda reader/writer implementations should support serialization of sample data from any implementation-supported format into the following standardized interleaved LPCM representation:
+While Onda explicitly supports arbitrary choice of file format for serialized sample data via the `file_extension` and `file_options` fields, Onda reader/writer implementations should support (de)serialization of sample data from any implementation-supported format into the following standardized interleaved LPCM representation:
 
 Given an `n`-channel signal, the byte offset for the `i`th channel value in the `j`th multichannel sample is given by `((i - 1) + (j - 1) * n) * byte_width(signal.sample_type)`. This layout can be expressed in the following table (where `w = byte_width(signal.sample_type)`):
 
