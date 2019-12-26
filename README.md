@@ -24,6 +24,7 @@ This document contains:
 
 ### Onda is useful...
 
+- ...when segments of a signal can fit in memory simultaneously, but an entire signal cannot.
 - ...when each signal in each recording in your dataset can fit in memory, but not all signals in each recording can fit in memory simultaneously.
 - ...when each recording in your dataset can fit in memory, but not all recordings in your dataset can fit in memory simultaneously.
 - ...when your dataset's signals benefit from sensor-specific encodings/compression codecs.
