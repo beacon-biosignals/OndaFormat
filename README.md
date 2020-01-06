@@ -10,6 +10,10 @@ This document contains:
 - Onda's [Specification](#specification)
 - [Potential Alternative Technologies/Approaches](#potential-alternatives)
 
+Implementations:
+
+- Julia: https://github.com/beacon-biosignals/Onda.jl
+
 ## Design Principles
 
 [\[back to top\]](#onda-dataset-format)
