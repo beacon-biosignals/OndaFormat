@@ -2,7 +2,7 @@
 
 **Onda** is a lightweight format for storing and manipulating sets of multi-sensor, multi-channel, LPCM-encodable, annotated, time-series recordings.
 
-The latest tagged version is [v0.2.3](https://github.com/beacon-biosignals/OndaFormat/tree/v0.2.3).
+The latest tagged version is [v0.2.4](https://github.com/beacon-biosignals/OndaFormat/tree/v0.2.4).
 
 This document contains:
 
@@ -179,16 +179,18 @@ The `samples` directory has the following structure:
 
 ```
 samples/
-    <uuid>/<signal_1_name>.<signal_1.file_extension>
-           <signal_2_name>.<signal_2.file_extension>
-           ⋮
-    <uuid>/<signal_1_name>.<signal_1.file_extension>
-           <signal_2_name>.<signal_2.file_extension>
-           ⋮
+    <uuid_1>/<signal_1_name>.<signal_1.file_extension>
+             <signal_2_name>.<signal_2.file_extension>
+             ⋮
+    <uuid_2>/<signal_1_name>.<signal_1.file_extension>
+             <signal_2_name>.<signal_2.file_extension>
+             ⋮
     ⋮
 ```
 
-Each subdirectory in `samples` contains all sample data associated with the recording whose `uuid` field matches the subdirectory's name. Similarly, each file in a `recordings` subdirectory stores the sample data of the signal whose name matches the file's name. This sample data is encoded as specified by the signal's `sample_type` and `sample_resolution_in_unit` fields, serialized to raw LPCM format, and formatted as specified by the signal's `file_extension` field.
+Each subdirectory in `samples` contains all sample data associated with the recording whose `uuid` field matches the subdirectory's name. Similarly, each file in a `recordings` subdirectory stores the sample data of the signal whose name matches the file's name. Note that a given recording's `samples` subdirectory need not exist if that recording's `signals` map is empty.
+
+All sample data is encoded as specified by the corresponding signal's `sample_type` and `sample_resolution_in_unit` fields, serialized to raw LPCM format, and formatted as specified by the signal's `file_extension` field.
 
 While Onda explicitly supports arbitrary choice of file format for serialized sample data via the `file_extension` and `file_options` fields, Onda reader/writer implementations should support (de)serialization of sample data from any implementation-supported format into the following standardized interleaved LPCM representation:
 
