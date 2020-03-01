@@ -134,8 +134,7 @@ Each `<uuid>: <recording object>` pair in the second MessagePack Map takes the s
             "stop_nanosecond": 394500000000
         },
         ⋮
-    ],
-    "custom": ...
+    ]
 }
 ```
 
@@ -170,9 +169,8 @@ Below is a detailed description for each field of a recording object:
     - `stop_nanosecond`: The annotation's stop offset in nanoseconds (inclusive) from the beginning of the recording. This value must be greater than or equal to the annotation's corresponding `start_nanosecond`.
 
     As the `annotations` array represents a set, it is not permitted to contain duplicate objects. For practicality's sake, however, it is preferable for Onda readers to simply ignore/merge duplicates rather than error upon encountering them. Onda readers are additionally permitted to merge annotations with equal `value`s and directly consecutive and/or overlapping time spans into a single annotation whose `value` is the same, `start_nanosecond` matches the earliest `start_nanosecond`, and `stop_nanosecond` matches the latest `stop_nanosecond`.
-- `custom`: Either `nil`, or a MessagePack value as specified by the dataset author. This field can be used to store domain-specific metadata for each recording.
 
-Except for the `custom` and `file_options` fields, `nil` values are entirely disallowed in recording objects.
+Note that `nil` values are entirely disallowed in recording objects except for the `file_options` field.
 
 ### `samples/`
 
