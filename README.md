@@ -69,9 +69,9 @@ This specification document is versioned in accordance with [semantic versioning
 
 ### Directory Structure
 
-An Onda dataset named `dataset_name` is comprised entirely of a filesystem directory named `dataset_name.onda` and that directory's contents.
+An Onda dataset is comprised entirely of a filesystem directory and that directory's contents. The directory's name may (but is not required to) have the extension `.onda` to signify that the directory is an Onda dataset.
 
-This directory may contain any user-authored content, but **must** contain the following files/subdirectories:
+An Onda dataset directory may contain any user-authored content, but **must** contain the following files/subdirectories:
 
 ```
 dataset_name.onda/
