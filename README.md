@@ -120,7 +120,7 @@ Each `<uuid>: <recording object>` pair in the second MessagePack Map takes the s
             "sample_unit": "microvolt",
             "sample_resolution_in_unit": 0.25,
             "sample_type": "int16",
-            "sample_rate": 256,
+            "sample_rate": 256.0,
             "file_extension": "lpcm.zst",
             "file_options": nil
         }
@@ -141,7 +141,7 @@ Each `<uuid>: <recording object>` pair in the second MessagePack Map takes the s
 
 Below is a detailed description for each field of a recording object:
 
-- `duration_in_nanoseconds`: The total duration of the recording in nanoseconds. This duration may be up to 1 nanosecond greater than the "actual" duration of the recording. All signals belonging to this recording MUST be of this duration, rounding up if sample rate/count do not divide evenly. For example, a 3-sample long signal at sampled at 22,222 Hz would be considered to have a duration of 135002 nanoseconds.
+- `duration_in_nanoseconds`: The total duration of the recording in nanoseconds. This duration may be up to 1 nanosecond greater than the "actual" duration of the recording. All signals belonging to this recording MUST be of this duration, rounding up if sample rate/count do not divide evenly. For example, a 3-sample long signal sampled at 22,222 Hz would be considered to have a duration of 135002 nanoseconds.
 
 - `signals`: A map of `<name>: <signal object>` pairs representing the signals contained in the recording. The keys of the map are the signals' names as strings; valid signal names are alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores. The values of the map are objects with the following fields:
     - `channel_names`: An array of strings where the `i`th element is the name of the signal's `i`th channel name. A valid channel name...
@@ -158,7 +158,7 @@ Below is a detailed description for each field of a recording object:
         - `"uint16"`: unsigned little-endian 2-byte integer
         - `"uint32"`: unsigned little-endian 4-byte integer
         - `"uint64"`: unsigned little-endian 8-byte integer
-    - `sample_rate`: The signal's sample rate as an unsigned integer.
+    - `sample_rate`: The signal's sample rate as a floating point value.
     - `file_extension`: The extension of the signal's corresponding file name in the `recordings` directory, indicating the (potentially compressed) format to which the given signal was serialized. All Onda readers/writers must support the following file extensions (and may define and support additional values as desired):
         - `"lpcm"`: signals are stored in raw interleaved LPCM format (see format description below).
         - `"lpcm.zst"`: signals stored in raw interleaved LPCM format and compressed via [`zstd`](https://github.com/facebook/zstd)
