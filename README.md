@@ -119,6 +119,7 @@ Each `<uuid>: <recording object>` pair in the second MessagePack Map takes the s
                               "p4", "f8", "t4", "t6", "o2"],
             "sample_unit": "microvolt",
             "sample_resolution_in_unit": 0.25,
+            "sample_offset_in_unit": 0.0,
             "sample_type": "int16",
             "sample_rate": 256.0,
             "file_extension": "lpcm.zst",
@@ -148,7 +149,8 @@ Below is a detailed description for each field of a recording object:
         - ...conforms to the same format as signal names (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores).
         - ...conforms to an `a-b` format where `a` and `b` are valid channel names. Furthermore, to allow arbitrary cross-signal referencing, `a` and/or `b` may be channel names from other signals contained in the recording. If this is the case, such a name must be qualified in the format `signal_name.channel_name`. For example, an `eog` signal might have a channel named `left-eeg.m1` (the left eye electrode referenced to the mastoid electrode from a 10-20 EEG signal).
     - `sample_unit`: The name of the signal's canonical unit as a string. This string should conform to the same format as signal names (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores), should be singular and not contain abbreviations (e.g. `"uV"` is bad, while `"microvolt"` is good; `"l/m"` is bad, `"liter_per_minute"` is good).
-    - `sample_resolution_in_unit`: The signal's resolution in its canonical unit as a floating point value. This value, along with the signal's `sample_type` field, determines the signal's LPCM quantization scheme.
+    - `sample_resolution_in_unit`: The signal's resolution in its canonical unit as a floating point value. This value, along with the signal's `sample_type` and `sample_offset_in_unit` fields, determines the signal's LPCM quantization scheme.
+    - `sample_offset_in_unit`: The signal's zero-offset in its canonical unit as a floating point value. This allows LPCM encodings to be centered around non-zero values.
     - `sample_type`: The primitive scalar type used to encode each sample in the signal. Valid values are:
         - `"int8"`: signed little-endian 1-byte integer
         - `"int16"`: signed little-endian 2-byte integer
@@ -190,7 +192,7 @@ samples/
 
 Each subdirectory in `samples` contains all sample data associated with the recording whose `uuid` field matches the subdirectory's name. Similarly, each file in a `recordings` subdirectory stores the sample data of the signal whose name matches the file's name. Note that a given recording's `samples` subdirectory need not exist if that recording's `signals` map is empty.
 
-All sample data is encoded as specified by the corresponding signal's `sample_type` and `sample_resolution_in_unit` fields, serialized to raw LPCM format, and formatted as specified by the signal's `file_extension` field.
+All sample data is encoded as specified by the corresponding signal's `sample_type`, `sample_resolution_in_unit`, and `sample_offset_in_unit` fields, serialized to raw LPCM format, and formatted as specified by the signal's `file_extension` field.
 
 While Onda explicitly supports arbitrary choice of file format for serialized sample data via the `file_extension` and `file_options` fields, Onda reader/writer implementations should support (de)serialization of sample data from any implementation-supported format into the following standardized interleaved LPCM representation:
 
@@ -216,7 +218,17 @@ Given an `n`-channel signal, the byte offset for the `i`th channel value in the 
 
 Values are stored in little-endian format.
 
-An individual value in a multichannel sample can be "encoded" from its representation in canonical units to its integer representation via division by the signal's `sample_resolution_in_unit` (followed/preceded by whatever quantization strategy is chosen by the user, e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be "decoded" from its integer representation to its representation in canonical units via multiplication by the signal's `sample_resolution_in_unit`.
+An individual value in a multichannel sample can be "encoded" from its representation in canonical units to its integer representation via:
+
+```
+encoded_value = (decoded_value - sample_offset_in_unit) / sample_resolution_in_unit
+```
+
+where the division is followed/preceded by whatever quantization strategy is chosen by the user (e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be "decoded" from its integer representation to its representation in canonical units via:
+
+```
+decoded_value = (encoded_value * sample_resolution_in_unit) + sample_offset_in_unit
+```
 
 ## Potential Alternatives
 
