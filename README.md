@@ -111,12 +111,13 @@ Each `<uuid>: <recording object>` pair in the second MessagePack Map takes the s
 
 ```
 "41459161-42bb-4e13-912f-6881ae356677": {
-    "duration_in_nanoseconds": 1850078125000,
     "signals": {
         "eeg": {
             "channel_names": ["fp1", "f3", "c3", "p3", "f7", "t3", "t5",
                               "o1", "fz", "cz", "pz", "fp2", "f4", "c4",
                               "p4", "f8", "t4", "t6", "o2"],
+            "start_nanosecond": 100000000,
+            "stop_nanosecond": 1850078125000,
             "sample_unit": "microvolt",
             "sample_resolution_in_unit": 0.25,
             "sample_offset_in_unit": 0.0,
@@ -140,9 +141,9 @@ Each `<uuid>: <recording object>` pair in the second MessagePack Map takes the s
 
 Below is a detailed description for each field of a recording object:
 
-- `duration_in_nanoseconds`: The total duration of the recording in nanoseconds. This duration may be up to 1 nanosecond greater than the "actual" duration of the recording. All signals belonging to this recording MUST be of this duration, rounding up if sample rate/count do not divide evenly. For example, a 3-sample long signal sampled at 22,222 Hz would be considered to have a duration of 135002 nanoseconds.
-
 - `signals`: A map of `<name>: <signal object>` pairs representing the signals contained in the recording. The keys of the map are the signals' names as strings; valid signal names are alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores. The values of the map are objects with the following fields:
+    - `start_nanosecond`: The signal's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
+    - `stop_nanosecond`: The signal's stop offset in nanoseconds (inclusive) from the beginning of the recording. This value must be greater than or equal to the signal's corresponding `start_nanosecond`.
     - `channel_names`: An array of strings where the `i`th element is the name of the signal's `i`th channel name. A valid channel name...
         - ...conforms to the same format as signal names (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores).
         - ...conforms to an `a-b` format where `a` and `b` are valid channel names. Furthermore, to allow arbitrary cross-signal referencing, `a` and/or `b` may be channel names from other signals contained in the recording. If this is the case, such a name must be qualified in the format `signal_name.channel_name`. For example, an `eog` signal might have a channel named `left-eeg.m1` (the left eye electrode referenced to the mastoid electrode from a 10-20 EEG signal).
