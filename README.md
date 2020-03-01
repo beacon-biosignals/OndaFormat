@@ -129,8 +129,7 @@ Each `<uuid>: <recording object>` pair in the second MessagePack Map takes the s
     },
     "annotations": [
         {
-            "key": "epileptiform",
-            "value": "spike",
+            "value": "epileptiform_spike",
             "start_nanosecond": 393500000000,
             "stop_nanosecond": 394500000000
         },
@@ -165,12 +164,12 @@ Below is a detailed description for each field of a recording object:
         - `"lpcm"`: signals are stored in raw interleaved LPCM format (see format description below).
         - `"lpcm.zst"`: signals stored in raw interleaved LPCM format and compressed via [`zstd`](https://github.com/facebook/zstd)
     - `file_options`: Either `nil`, or an object where each key-value pair corresponds to a configuration setting for the file format indicated by the signal's `file_extension`. For Onda's standard `"lpcm"` and `"lpcm.zst"` file extensions, the only valid `file_options` value is simply `nil`. If an Onda reader/writer defines a new `file_extension` value, it must also define the valid `file_options` values corresponding to that `file_extension` value.
-- `annotations`: A set of annotation objects stored as an array. As this array represents a set, it is not permitted to contain duplicate objects (as determined by value-equivalence). For practicality's sake, however, it is preferable for Onda readers to simply ignore duplicates rather than error upon encountering them. Each annotation is a key-value pair associated with a given time window in the corresponding recording and has the following fields:
-    - `key`: The annotation's key as a string.
+- `annotations`: A set of annotation objects stored as an array. Each annotation is a string value associated with a given time window in the corresponding recording and has the following fields:
     - `value`: The annotation's value as a string.
     - `start_nanosecond`: The annotation's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
     - `stop_nanosecond`: The annotation's stop offset in nanoseconds (inclusive) from the beginning of the recording. This value must be greater than or equal to the annotation's corresponding `start_nanosecond`.
 
+    As the `annotations` array represents a set, it is not permitted to contain duplicate objects. For practicality's sake, however, it is preferable for Onda readers to simply ignore/merge duplicates rather than error upon encountering them. Onda readers are additionally permitted to merge annotations with equal `value`s and directly consecutive and/or overlapping time spans into a single annotation whose `value` is the same, `start_nanosecond` matches the earliest `start_nanosecond`, and `stop_nanosecond` matches the latest `stop_nanosecond`.
 - `custom`: Either `nil`, or a MessagePack value as specified by the dataset author. This field can be used to store domain-specific metadata for each recording.
 
 Except for the `custom` and `file_options` fields, `nil` values are entirely disallowed in recording objects.
