@@ -2,7 +2,7 @@
 
 **Onda** is a lightweight format for storing and manipulating sets of multi-sensor, multi-channel, LPCM-encodable, annotated, time-series recordings.
 
-The latest tagged version is [v0.2.4](https://github.com/beacon-biosignals/OndaFormat/tree/v0.2.4).
+The latest tagged version is [v0.3.0](https://github.com/beacon-biosignals/OndaFormat/tree/v0.3.0).
 
 This document contains:
 
@@ -96,7 +96,7 @@ The header object takes the same structure as the following example:
 
 ```
 {
-    "onda_format_version": "v0.2.0",
+    "onda_format_version": "v0.3.0",
     "ordered_keys": false
 }
 ```
