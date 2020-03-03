@@ -2,7 +2,7 @@
 
 **Onda** is a lightweight format for storing and manipulating sets of multi-sensor, multi-channel, LPCM-encodable, annotated, time-series recordings.
 
-The latest tagged version is [v0.2.4](https://github.com/beacon-biosignals/OndaFormat/tree/v0.2.4).
+The latest tagged version is [v0.3.0](https://github.com/beacon-biosignals/OndaFormat/tree/v0.3.0).
 
 This document contains:
 
@@ -69,9 +69,9 @@ This specification document is versioned in accordance with [semantic versioning
 
 ### Directory Structure
 
-An Onda dataset named `dataset_name` is comprised entirely of a filesystem directory named `dataset_name.onda` and that directory's contents.
+An Onda dataset is comprised entirely of a filesystem directory and that directory's contents. The directory's name may (but is not required to) have the extension `.onda` to signify that the directory is an Onda dataset.
 
-This directory may contain any user-authored content, but **must** contain the following files/subdirectories:
+An Onda dataset directory may contain any user-authored content, but **must** contain the following files/subdirectories:
 
 ```
 dataset_name.onda/
@@ -96,7 +96,7 @@ The header object takes the same structure as the following example:
 
 ```
 {
-    "onda_format_version": "v0.2.0",
+    "onda_format_version": "v0.3.0",
     "ordered_keys": false
 }
 ```
@@ -111,16 +111,18 @@ Each `<uuid>: <recording object>` pair in the second MessagePack Map takes the s
 
 ```
 "41459161-42bb-4e13-912f-6881ae356677": {
-    "duration_in_nanoseconds": 1850078125000,
     "signals": {
         "eeg": {
             "channel_names": ["fp1", "f3", "c3", "p3", "f7", "t3", "t5",
                               "o1", "fz", "cz", "pz", "fp2", "f4", "c4",
                               "p4", "f8", "t4", "t6", "o2"],
+            "start_nanosecond": 100000000,
+            "stop_nanosecond": 1850078125000,
             "sample_unit": "microvolt",
             "sample_resolution_in_unit": 0.25,
+            "sample_offset_in_unit": 0.0,
             "sample_type": "int16",
-            "sample_rate": 256,
+            "sample_rate": 256.0,
             "file_extension": "lpcm.zst",
             "file_options": nil
         }
@@ -128,27 +130,26 @@ Each `<uuid>: <recording object>` pair in the second MessagePack Map takes the s
     },
     "annotations": [
         {
-            "key": "epileptiform",
-            "value": "spike",
+            "value": "epileptiform_spike",
             "start_nanosecond": 393500000000,
             "stop_nanosecond": 394500000000
         },
         ⋮
-    ],
-    "custom": ...
+    ]
 }
 ```
 
 Below is a detailed description for each field of a recording object:
 
-- `duration_in_nanoseconds`: The total duration of the recording in nanoseconds. This duration may be up to 1 nanosecond greater than the "actual" duration of the recording. All signals belonging to this recording MUST be of this duration, rounding up if sample rate/count do not divide evenly. For example, a 3-sample long signal at sampled at 22,222 Hz would be considered to have a duration of 135002 nanoseconds.
-
 - `signals`: A map of `<name>: <signal object>` pairs representing the signals contained in the recording. The keys of the map are the signals' names as strings; valid signal names are alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores. The values of the map are objects with the following fields:
+    - `start_nanosecond`: The signal's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
+    - `stop_nanosecond`: The signal's stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than or equal to the signal's corresponding `start_nanosecond`.
     - `channel_names`: An array of strings where the `i`th element is the name of the signal's `i`th channel name. A valid channel name...
         - ...conforms to the same format as signal names (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores).
         - ...conforms to an `a-b` format where `a` and `b` are valid channel names. Furthermore, to allow arbitrary cross-signal referencing, `a` and/or `b` may be channel names from other signals contained in the recording. If this is the case, such a name must be qualified in the format `signal_name.channel_name`. For example, an `eog` signal might have a channel named `left-eeg.m1` (the left eye electrode referenced to the mastoid electrode from a 10-20 EEG signal).
     - `sample_unit`: The name of the signal's canonical unit as a string. This string should conform to the same format as signal names (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores), should be singular and not contain abbreviations (e.g. `"uV"` is bad, while `"microvolt"` is good; `"l/m"` is bad, `"liter_per_minute"` is good).
-    - `sample_resolution_in_unit`: The signal's resolution in its canonical unit as a floating point value. This value, along with the signal's `sample_type` field, determines the signal's LPCM quantization scheme.
+    - `sample_resolution_in_unit`: The signal's resolution in its canonical unit as a floating point value. This value, along with the signal's `sample_type` and `sample_offset_in_unit` fields, determines the signal's LPCM quantization scheme.
+    - `sample_offset_in_unit`: The signal's zero-offset in its canonical unit as a floating point value. This allows LPCM encodings to be centered around non-zero values.
     - `sample_type`: The primitive scalar type used to encode each sample in the signal. Valid values are:
         - `"int8"`: signed little-endian 1-byte integer
         - `"int16"`: signed little-endian 2-byte integer
@@ -158,20 +159,19 @@ Below is a detailed description for each field of a recording object:
         - `"uint16"`: unsigned little-endian 2-byte integer
         - `"uint32"`: unsigned little-endian 4-byte integer
         - `"uint64"`: unsigned little-endian 8-byte integer
-    - `sample_rate`: The signal's sample rate as an unsigned integer.
+    - `sample_rate`: The signal's sample rate as a floating point value.
     - `file_extension`: The extension of the signal's corresponding file name in the `recordings` directory, indicating the (potentially compressed) format to which the given signal was serialized. All Onda readers/writers must support the following file extensions (and may define and support additional values as desired):
         - `"lpcm"`: signals are stored in raw interleaved LPCM format (see format description below).
         - `"lpcm.zst"`: signals stored in raw interleaved LPCM format and compressed via [`zstd`](https://github.com/facebook/zstd)
     - `file_options`: Either `nil`, or an object where each key-value pair corresponds to a configuration setting for the file format indicated by the signal's `file_extension`. For Onda's standard `"lpcm"` and `"lpcm.zst"` file extensions, the only valid `file_options` value is simply `nil`. If an Onda reader/writer defines a new `file_extension` value, it must also define the valid `file_options` values corresponding to that `file_extension` value.
-- `annotations`: A set of annotation objects stored as an array. As this array represents a set, it is not permitted to contain duplicate objects (as determined by value-equivalence). For practicality's sake, however, it is preferable for Onda readers to simply ignore duplicates rather than error upon encountering them. Each annotation is a key-value pair associated with a given time window in the corresponding recording and has the following fields:
-    - `key`: The annotation's key as a string.
+- `annotations`: A set of annotation objects stored as an array. Each annotation is a string value associated with a given time window in the corresponding recording and has the following fields:
     - `value`: The annotation's value as a string.
     - `start_nanosecond`: The annotation's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
-    - `stop_nanosecond`: The annotation's stop offset in nanoseconds (inclusive) from the beginning of the recording. This value must be greater than or equal to the annotation's corresponding `start_nanosecond`.
+    - `stop_nanosecond`: The annotation's stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than or equal to the annotation's corresponding `start_nanosecond`.
 
-- `custom`: Either `nil`, or a MessagePack value as specified by the dataset author. This field can be used to store domain-specific metadata for each recording.
+    As the `annotations` array represents a set, it is not permitted to contain duplicate objects. For practicality's sake, however, it is preferable for Onda readers to simply ignore/merge duplicates rather than error upon encountering them. Onda readers are additionally permitted to merge annotations with equal `value`s and directly consecutive and/or overlapping time spans into a single annotation whose `value` is the same, `start_nanosecond` matches the earliest `start_nanosecond`, and `stop_nanosecond` matches the latest `stop_nanosecond`.
 
-Except for the `custom` and `file_options` fields, `nil` values are entirely disallowed in recording objects.
+Note that `nil` values are entirely disallowed in recording objects except for the `file_options` field.
 
 ### `samples/`
 
@@ -190,7 +190,7 @@ samples/
 
 Each subdirectory in `samples` contains all sample data associated with the recording whose `uuid` field matches the subdirectory's name. Similarly, each file in a `recordings` subdirectory stores the sample data of the signal whose name matches the file's name. Note that a given recording's `samples` subdirectory need not exist if that recording's `signals` map is empty.
 
-All sample data is encoded as specified by the corresponding signal's `sample_type` and `sample_resolution_in_unit` fields, serialized to raw LPCM format, and formatted as specified by the signal's `file_extension` field.
+All sample data is encoded as specified by the corresponding signal's `sample_type`, `sample_resolution_in_unit`, and `sample_offset_in_unit` fields, serialized to raw LPCM format, and formatted as specified by the signal's `file_extension` field.
 
 While Onda explicitly supports arbitrary choice of file format for serialized sample data via the `file_extension` and `file_options` fields, Onda reader/writer implementations should support (de)serialization of sample data from any implementation-supported format into the following standardized interleaved LPCM representation:
 
@@ -216,7 +216,17 @@ Given an `n`-channel signal, the byte offset for the `i`th channel value in the 
 
 Values are stored in little-endian format.
 
-An individual value in a multichannel sample can be "encoded" from its representation in canonical units to its integer representation via division by the signal's `sample_resolution_in_unit` (followed/preceded by whatever quantization strategy is chosen by the user, e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be "decoded" from its integer representation to its representation in canonical units via multiplication by the signal's `sample_resolution_in_unit`.
+An individual value in a multichannel sample can be "encoded" from its representation in canonical units to its integer representation via:
+
+```
+encoded_value = (decoded_value - sample_offset_in_unit) / sample_resolution_in_unit
+```
+
+where the division is followed/preceded by whatever quantization strategy is chosen by the user (e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be "decoded" from its integer representation to its representation in canonical units via:
+
+```
+decoded_value = (encoded_value * sample_resolution_in_unit) + sample_offset_in_unit
+```
 
 ## Potential Alternatives
 
