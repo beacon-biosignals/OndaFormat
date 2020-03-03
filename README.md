@@ -143,7 +143,7 @@ Below is a detailed description for each field of a recording object:
 
 - `signals`: A map of `<name>: <signal object>` pairs representing the signals contained in the recording. The keys of the map are the signals' names as strings; valid signal names are alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores. The values of the map are objects with the following fields:
     - `start_nanosecond`: The signal's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
-    - `stop_nanosecond`: The signal's stop offset in nanoseconds (inclusive) from the beginning of the recording. This value must be greater than or equal to the signal's corresponding `start_nanosecond`.
+    - `stop_nanosecond`: The signal's stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than or equal to the signal's corresponding `start_nanosecond`.
     - `channel_names`: An array of strings where the `i`th element is the name of the signal's `i`th channel name. A valid channel name...
         - ...conforms to the same format as signal names (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores).
         - ...conforms to an `a-b` format where `a` and `b` are valid channel names. Furthermore, to allow arbitrary cross-signal referencing, `a` and/or `b` may be channel names from other signals contained in the recording. If this is the case, such a name must be qualified in the format `signal_name.channel_name`. For example, an `eog` signal might have a channel named `left-eeg.m1` (the left eye electrode referenced to the mastoid electrode from a 10-20 EEG signal).
@@ -167,7 +167,7 @@ Below is a detailed description for each field of a recording object:
 - `annotations`: A set of annotation objects stored as an array. Each annotation is a string value associated with a given time window in the corresponding recording and has the following fields:
     - `value`: The annotation's value as a string.
     - `start_nanosecond`: The annotation's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
-    - `stop_nanosecond`: The annotation's stop offset in nanoseconds (inclusive) from the beginning of the recording. This value must be greater than or equal to the annotation's corresponding `start_nanosecond`.
+    - `stop_nanosecond`: The annotation's stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than or equal to the annotation's corresponding `start_nanosecond`.
 
     As the `annotations` array represents a set, it is not permitted to contain duplicate objects. For practicality's sake, however, it is preferable for Onda readers to simply ignore/merge duplicates rather than error upon encountering them. Onda readers are additionally permitted to merge annotations with equal `value`s and directly consecutive and/or overlapping time spans into a single annotation whose `value` is the same, `start_nanosecond` matches the earliest `start_nanosecond`, and `stop_nanosecond` matches the latest `stop_nanosecond`.
 
