@@ -2,7 +2,7 @@
 
 **Onda** is a lightweight format for storing and manipulating sets of multi-sensor, multi-channel, LPCM-encodable, annotated, time-series recordings.
 
-The latest tagged version is [v0.3.0](https://github.com/beacon-biosignals/OndaFormat/tree/v0.3.0).
+The latest tagged version is [v0.4.0](https://github.com/beacon-biosignals/OndaFormat/tree/v0.4.0).
 
 This document contains:
 
@@ -71,7 +71,7 @@ This specification document is versioned in accordance with [semantic versioning
 
 An Onda dataset is comprised entirely of a filesystem directory and that directory's contents. The directory's name may (but is not required to) have the extension `.onda` to signify that the directory is an Onda dataset.
 
-An Onda dataset directory may contain any user-authored content, but **must** contain the following files/subdirectories:
+An Onda dataset directory may contain any user-authored content, but **must** contain the following files/subdirectories (note, though, that the `samples` subdirectory may be elided if it is empty):
 
 ```
 dataset_name.onda/
@@ -84,7 +84,7 @@ Each of the above files/subdirectories is described in detail later, but here's 
 
 - `recordings.msgpack.zst`: a [zstd](https://github.com/facebook/zstd)-compressed [MessagePack](https://msgpack.org/index.html) file which contains a map whose entries represent individual recordings in the dataset.
 
-- `samples/`: a directory containing all sample data associated with the dataset, grouped into subdirectories for each recording.
+- `samples/`: a subdirectory containing all sample data associated with the dataset, grouped into subdirectories for each recording. This subdirectory need not exist if it would be empty.
 
 - `⋮`: any additional content as provided by the dataset author.
 
