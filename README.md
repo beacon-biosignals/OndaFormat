@@ -2,7 +2,7 @@
 
 **Onda** is a lightweight format for storing and manipulating sets of multi-sensor, multi-channel, LPCM-encodable, annotated, time-series recordings.
 
-The latest tagged version is [v0.4.0](https://github.com/beacon-biosignals/OndaFormat/tree/v0.4.0).
+The latest tagged version is [v0.4.1](https://github.com/beacon-biosignals/OndaFormat/tree/v0.4.1).
 
 This document contains:
 
@@ -167,7 +167,7 @@ Below is a detailed description for each field of a recording object:
 - `annotations`: A set of annotation objects stored as an array. Each annotation is a string value associated with a given time window in the corresponding recording and has the following fields:
     - `value`: The annotation's value as a string.
     - `start_nanosecond`: The annotation's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
-    - `stop_nanosecond`: The annotation's stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than or equal to the annotation's corresponding `start_nanosecond`.
+    - `stop_nanosecond`: The annotation's stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than the annotation's corresponding `start_nanosecond`.
 
     As the `annotations` array represents a set, it is not permitted to contain duplicate objects. For practicality's sake, however, it is preferable for Onda readers to simply ignore/merge duplicates rather than error upon encountering them. Onda readers are additionally permitted to merge annotations with equal `value`s and directly consecutive and/or overlapping time spans into a single annotation whose `value` is the same, `start_nanosecond` matches the earliest `start_nanosecond`, and `stop_nanosecond` matches the latest `stop_nanosecond`.
 
