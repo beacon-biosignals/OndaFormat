@@ -119,7 +119,7 @@ A `*.signals` file contains an Arrow table with the following columns in the fol
     - `"lpcm"`: signals are stored in raw interleaved LPCM format (see format description below).
     - `"lpcm.zst"`: signals stored in raw interleaved LPCM format and compressed via [`zstd`](https://github.com/facebook/zstd)
 4. `kind` (`List` of `Utf8`): A string identifying the kind of signal that the row represents. Valid `kind` values are alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores.
-5. `channel_names` (`List` of `List` of `Utf8`): A list of strings where the `i`th element is the name of the signal's `i`th channel name. A valid channel name...
+5. `channels` (`List` of `List` of `Utf8`): A list of strings where the `i`th element is the name of the signal's `i`th channel. A valid channel name...
     - ...conforms to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores).
     - ...conforms to an `a-b` format where `a` and `b` are valid channel names. Furthermore, to allow arbitrary cross-signal referencing, `a` and/or `b` may be channel names from other signals contained in the recording. If this is the case, such a name must be qualified in the format `signal_name.channel_name`. For example, an `eog` signal might have a channel named `left-eeg.m1` (the left eye electrode referenced to the mastoid electrode from a 10-20 EEG signal).
 6. `start_nanosecond` (`Duration` w/ `NANOSECOND` unit): The signal's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
@@ -142,7 +142,7 @@ A `*.signals` file contains an Arrow table with the following columns in the fol
 
 An example `*.signals` table:
 
-| `recording_uuid`                     | `file_path`                                        | `file_format`                                            | `kind`     | `channel_names`                         | `start_nanosecond` | `stop_nanosecond` | `sample_unit` | `sample_resolution_in_unit` | `sample_offset_in_unit` | `sample_type` | `sample_rate` |
+| `recording_uuid`                     | `file_path`                                        | `file_format`                                            | `kind`     | `channels`                         | `start_nanosecond` | `stop_nanosecond` | `sample_unit` | `sample_resolution_in_unit` | `sample_offset_in_unit` | `sample_type` | `sample_rate` |
 |--------------------------------------|----------------------------------------------------|----------------------------------------------------------|------------|-----------------------------------------|--------------------|-------------------|---------------|-----------------------------|-------------------------|---------------|---------------|
 | `0xb14d2c6d8d844e46824f5c5d857215b4` | `"./relative/path/to/samples.lpcm"`                | `"lpcm"`                                                 | `"eeg"`    | `["fp1", "f3", "f7", "fz", "f4", "f8"]` | `10e9`             | `10900e9`         | `"microvolt"` | `0.25`                      | `3.6`                   | `"int16"`     | `256`         |
 | `0xb14d2c6d8d844e46824f5c5d857215b4` | `"s3://bucket/prefix/obj.lpcm.zst"`                | `"lpcm.zst"`                                             | `"ecg"`    | `["avl", "avr"]`                        | `0`                | `10800e9`         | `"microvolt"` | `0.5`                       | `1.0`                   | `"int16"`     | `128.3`       |
