@@ -88,7 +88,7 @@ Note that `*.annotations` files and `*.signals` files are largely orthogonal to 
 
 The Arrow tables contained in `*.annotations` and `*.signals` must have [attached custom metadata](https://arrow.apache.org/docs/format/Columnar.html#custom-application-metadata) containing the key `"onda_format_version"` whose value specifies the version of the Onda format that an Onda reader must support in order to properly read the file. This string takes the form `"vM.m.p"` where `M` is a major version number, `m` is a minor version number, and `p` is a patch version number.
 
-Each of the aforementioned file types are further specified in the following sections. These sections refer to the [logical types defined by the Arrow specification](https://github.com/apache/arrow/blob/master/format/Schema.fbs), but note that Onda reader/writer implementations may employ Arrow extension type aliases (for example, to provide more first-class UUID support).
+Each of the aforementioned file types are further specified in the following sections. These sections refer to the [logical types defined by the Arrow specification](https://github.com/apache/arrow/blob/master/format/Schema.fbs). Onda reader/writer implementations may additionally employ Arrow extension types that directly alias a column's specified logical type in order to support application-level features (first-class UUID support, custom `file_path` type support, etc.).
 
 ### `*.annotations` Files
 
