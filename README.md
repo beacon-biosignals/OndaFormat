@@ -183,7 +183,7 @@ An individual value in a multichannel sample can be converted to its encoded rep
 encoded_value = (decoded_value - sample_offset_in_unit) / sample_resolution_in_unit
 ```
 
-where the division is followed/preceded by whatever quantization strategy is chosen by the user (e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be converted from its encoded representation to its canonical unit representation via:
+where the division is followed/preceded by whatever quantization strategy is chosen by the user (e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be converted ("decoded") from its encoded representation to its canonical unit representation via:
 
 ```
 decoded_value = (encoded_value * sample_resolution_in_unit) + sample_offset_in_unit
@@ -199,7 +199,7 @@ In this section, we describe several alternative technologies/solutions consider
 
 - Avro: Avro was originally considered as an alternative to Onda's current approach (associating one sample data file per row in `*.signals`). Avro's consideration was [initially motivated by Uber's use of the format in a manner that was extremely similar to an early Onda prototype's use of NPY](https://eng.uber.com/hdfs-file-format-apache-spark/). Unfortunately, it seems that most of the well-maintained tooling for Avro is Spark-centric; in fact, the overarching Avro project [has struggled (until very recently) to keep a dedicated set of maintainers engaged with the project](https://whimsy.apache.org/board/minutes/Avro.html). Avro's most desirable features, from the perspective of Onda, was its compression and "random" row access. However, early tests indicated that neither of those features worked particularly well for signals of interest compared to domain-specific seekable compression formats like FLAC.
 
-- EDF/MEF/etc.: Onda was originally motivated by bulk electrophysiological dataset manipulation, a domain in which there are many different recording file formats that are all generally designed to support a one-file-per-recording use case and are constrained to certain domain-specific assumptions (e.g. specific bit depth assumptions, annotations stored within files containing sample data, etc.). Technically, since Onda itself is agnostic to choice of file formats used for signal serialization, one could store Onda sample data in MEF/EDF.
+- EDF/MEF/etc.: Onda was originally motivated by bulk electrophysiological dataset manipulation, a domain in which there are many different recording file formats that are all generally designed to support a one-file-per-recording use case and are constrained to certain domain-specific assumptions (e.g. specific bit depth assumptions, annotations stored within signal artifacts, etc.). Technically, since Onda itself is agnostic to choice of file formats used for signal serialization, one could store Onda sample data in EDF/MEF.
 
 - BIDS: BIDS is an alternative option for storing neuroscience datasets. As mentioned above, Onda's original motivation is electrophysiological dataset manipulation, so BIDS appeared to be a highly relevant candidate. Unfortunately, BIDS restricts EEG data to [very specific file formats](https://bids-specification.readthedocs.io/en/stable/04-modality-specific-files/03-electroencephalography.html#eeg-recording-data) and also does not account for the plurality of LPCM-encodable signals that Onda seeks to handle generically.
 
