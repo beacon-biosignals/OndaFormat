@@ -21,7 +21,7 @@ This document uses the term...
 
 - ...**"LPCM"** to refer to [linear pulse code modulation](https://en.wikipedia.org/wiki/Pulse-code_modulation), a form of signal encoding where multivariate waveforms are digitized as a series of samples uniformly spaced over time and quantized to a uniformly spaced grid.
 
-- ...**"signal"** to refer to the digitized output of an individual sensor or process. A signal is comprised of metadata (e.g. LPCM encoding, channel information, sample data path/format information, etc.) and associated multi-channel sample data.
+- ...**"signal"** to refer to the digitized output of a process. A signal is comprised of metadata (e.g. LPCM encoding, channel information, sample data path/format information, etc.) and associated multi-channel sample data.
 
 - ...**"recording"** to refer a collection of one or more signals recorded simultaneously over a well-defined time period.
 
@@ -50,7 +50,7 @@ This document uses the term...
     - ...popular distributed analytics tools (e.g. Spark, TensorFlow).
     - ...traditional databases (e.g. PostgresSQL, Cassandra).
     - ...object-based storage systems (e.g. S3, GCP Cloud Storage).
-- ...enable metadata, annotations etc. to be stored and processed separately from raw sample data artifacts without significant file system overhead.
+- ...enable metadata, annotations etc. to be stored and processed separately from raw sample data without significant communication overhead.
 - ...enable extensibility without sacrificing interpretability. New signal encodings, annotations, sample data file formats, etc. should all be user-definable by design.
 - ...be simple enough that a decent programmer (with Google access) should be able to fully interpret (and write performant parsers for) an Onda dataset without ever reading Onda documentation.
 
@@ -72,7 +72,7 @@ This specification document is versioned in accordance with [semantic versioning
 - ...increments to `minor` correspond to changes/additions that are unlikely to break existing Onda readers
 - ...increments to `patch` correspond to purely textual changes, e.g. clarifying a phrase or fixing a typo
 
-Note that, in accordance with the semantic versioning specification, `0.minor.patch` releases may include breaking changes:
+Note that, in accordance with the semantic versioning specification, minor increments in the `0.y.z` release series may include breaking changes:
 
 > Major version zero (0.y.z) is for initial development. Anything MAY change at any time. The public API SHOULD NOT be considered stable.
 
@@ -114,20 +114,20 @@ An example of an `*.annotations` table (whose `value` column happens to contain 
 A `*.signals` file contains an Arrow table with the following columns in the following order:
 
 1. `recording_uuid` (128-bit `FixedSizeBinary`): The UUID identifying the recording with which the annotation is associated.
-2. `file_path` (`List` of `Utf8`): A string identifying the location of the signal's associated sample data file. This string must either be a [valid URI](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier) or a relative file path (specifically, relative to the location of the `*.signals` file itself).
-3. `file_format` (`List` of `Utf8`): A string identifying the format of the signal's associated sample data file. All Onda readers/writers must support the following file formats (and may define and support additional values as desired):
+2. `file_path` (`Utf8`): A string identifying the location of the signal's associated sample data file. This string must either be a [valid URI](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier) or a relative file path (specifically, relative to the location of the `*.signals` file itself).
+3. `file_format` (`Utf8`): A string identifying the format of the signal's associated sample data file. All Onda readers/writers must support the following file formats (and may define and support additional values as desired):
     - `"lpcm"`: signals are stored in raw interleaved LPCM format (see format description below).
     - `"lpcm.zst"`: signals stored in raw interleaved LPCM format and compressed via [`zstd`](https://github.com/facebook/zstd)
 4. `start_nanosecond` (`Duration` w/ `NANOSECOND` unit): The signal's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
 5. `stop_nanosecond` (`Duration` w/ `NANOSECOND` unit): The signal's stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than the signal's corresponding `start_nanosecond`.
-6. `kind` (`List` of `Utf8`): A string identifying the kind of signal that the row represents. Valid `kind` values are alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores.
-7. `channels` (`List` of `List` of `Utf8`): A list of strings where the `i`th element is the name of the signal's `i`th channel. A valid channel name...
+6. `kind` (`Utf8`): A string identifying the kind of signal that the row represents. Valid `kind` values are alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores.
+7. `channels` (`List` of `Utf8`): A list of strings where the `i`th element is the name of the signal's `i`th channel. A valid channel name...
     - ...conforms to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores).
     - ...conforms to an `a-b` format where `a` and `b` are valid channel names. Furthermore, to allow arbitrary cross-signal referencing, `a` and/or `b` may be channel names from other signals contained in the recording. If this is the case, such a name must be qualified in the format `signal_name.channel_name`. For example, an `eog` signal might have a channel named `left-eeg.m1` (the left eye electrode referenced to the mastoid electrode from a 10-20 EEG signal).
-8. `sample_unit` (`List` of `Utf8`): The name of the signal's canonical unit as a string. This string should conform to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores), should be singular and not contain abbreviations (e.g. `"uV"` is bad, `"microvolt"` is good; `"l/m"` is bad, `"liter_per_minute"` is good).
+8. `sample_unit` (`Utf8`): The name of the signal's canonical unit as a string. This string should conform to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores), should be singular and not contain abbreviations (e.g. `"uV"` is bad, `"microvolt"` is good; `"l/m"` is bad, `"liter_per_minute"` is good).
 9. `sample_resolution_in_unit` (`FloatingPoint` w/ `DOUBLE` precision): The signal's resolution in its canonical unit. This value, along with the signal's `sample_type` and `sample_offset_in_unit` fields, determines the signal's LPCM quantization scheme.
 10. `sample_offset_in_unit` (`FloatingPoint` w/ `DOUBLE` precision): The signal's zero-offset in its canonical unit (thus allowing LPCM encodings that are centered around non-zero values).
-11. `sample_type` (`List` of `Utf8`): The primitive scalar type used to encode each sample in the signal. Valid values are:
+11. `sample_type` (`Utf8`): The primitive scalar type used to encode each sample in the signal. Valid values are:
     - `"int8"`: signed little-endian 1-byte integer
     - `"int16"`: signed little-endian 2-byte integer
     - `"int32"`: signed little-endian 4-byte integer
@@ -197,9 +197,9 @@ In this section, we describe several alternative technologies/solutions consider
 
 - HDF5: HDF5 was a candidate for Onda's de facto underlying storage layer. While featureful, ubiquitous, and technically based on an open standard, HDF5 is [infamous for being a hefty dependency with a fairly complex reference implementation](https://cyrille.rossant.net/moving-away-hdf5/). While HDF5 solves many problems inherent to filesystem-based storage, most use cases for Onda involve storing large binary blobs in domain-specific formats that already exist quite naturally as files on a filesystem. Though it was decided that Onda should not explicitly depend on HDF5, nothing inherently technically precludes Onda dataset content from being stored in HDF5 in the same manner as any other similarly structured filesystem directory. For practical purposes, however, Onda readers/writers may not necessarily automatically be able to read such a dataset unless they explicitly feature HDF5 support (since HDF5 support isn't mandated by the format).
 
-- Avro: Avro was primarily considered as an alternative to one-sample-data-file-per-signal approach ultimately adopted by Onda, [initially motivated by Uber's use of the format in a manner that was extremely similar to an early Onda prototype's use of NPY](https://eng.uber.com/hdfs-file-format-apache-spark/). Unfortunately, it seems that most of the well-maintained tooling for Avro is Spark-centric; in fact, the overarching Avro project [has struggled (until very recently) to keep a dedicated set of maintainers engaged with the project](https://whimsy.apache.org/board/minutes/Avro.html). Avro's most desirable features, from the perspective of Onda, was its compression and "random" row access. However, early tests indicated that neither of those features worked particularly well for signals of interest compared to domain-specific seekable compression formats like FLAC.
+- Avro: Avro was originally considered as an alternative to Onda's current approach (associating one sample data file per row in `*.signals`). Avro's consideration was [initially motivated by Uber's use of the format in a manner that was extremely similar to an early Onda prototype's use of NPY](https://eng.uber.com/hdfs-file-format-apache-spark/). Unfortunately, it seems that most of the well-maintained tooling for Avro is Spark-centric; in fact, the overarching Avro project [has struggled (until very recently) to keep a dedicated set of maintainers engaged with the project](https://whimsy.apache.org/board/minutes/Avro.html). Avro's most desirable features, from the perspective of Onda, was its compression and "random" row access. However, early tests indicated that neither of those features worked particularly well for signals of interest compared to domain-specific seekable compression formats like FLAC.
 
-- EDF/MEF/etc.: Onda was originally motivated by bulk electrophysiological dataset manipulation, a domain in which there are many different recording file formats that are all generally designed to support a one-file-per-recording use case and are constrained to certain domain-specific assumptions (e.g. specific bit depth assumptions, annotations stored within signal artifacts, etc.). Technically, since Onda itself is agnostic to choice of file formats used for signal serialization, one could store Onda sample data in MEF/EDF.
+- EDF/MEF/etc.: Onda was originally motivated by bulk electrophysiological dataset manipulation, a domain in which there are many different recording file formats that are all generally designed to support a one-file-per-recording use case and are constrained to certain domain-specific assumptions (e.g. specific bit depth assumptions, annotations stored within files containing sample data, etc.). Technically, since Onda itself is agnostic to choice of file formats used for signal serialization, one could store Onda sample data in MEF/EDF.
 
 - BIDS: BIDS is an alternative option for storing neuroscience datasets. As mentioned above, Onda's original motivation is electrophysiological dataset manipulation, so BIDS appeared to be a highly relevant candidate. Unfortunately, BIDS restricts EEG data to [very specific file formats](https://bids-specification.readthedocs.io/en/stable/04-modality-specific-files/03-electroencephalography.html#eeg-recording-data) and also does not account for the plurality of LPCM-encodable signals that Onda seeks to handle generically.
 
