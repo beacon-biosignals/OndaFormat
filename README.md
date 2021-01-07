@@ -127,7 +127,7 @@ A `*.signals` file contains an Arrow table with the following columns in the fol
 8. `sample_unit` (`List` of `Utf8`): The name of the signal's canonical unit as a string. This string should conform to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores), should be singular and not contain abbreviations (e.g. `"uV"` is bad, `"microvolt"` is good; `"l/m"` is bad, `"liter_per_minute"` is good).
 9. `sample_resolution_in_unit` (`FloatingPoint` w/ `DOUBLE` precision): The signal's resolution in its canonical unit. This value, along with the signal's `sample_type` and `sample_offset_in_unit` fields, determines the signal's LPCM quantization scheme.
 10. `sample_offset_in_unit` (`FloatingPoint` w/ `DOUBLE` precision): The signal's zero-offset in its canonical unit (thus allowing LPCM encodings that are centered around non-zero values).
-11. `sample_type`: The primitive scalar type used to encode each sample in the signal. Valid values are:
+11. `sample_type` (`List` of `Utf8`): The primitive scalar type used to encode each sample in the signal. Valid values are:
     - `"int8"`: signed little-endian 1-byte integer
     - `"int16"`: signed little-endian 2-byte integer
     - `"int32"`: signed little-endian 4-byte integer
@@ -177,13 +177,13 @@ Given an `n`-channel signal, the byte offset for the `i`th channel value in the 
 
 Values are stored in little-endian format.
 
-An individual value in a multichannel sample can be "encoded" from its representation in canonical units to its integer representation via:
+An individual value in a multichannel sample can be converted to its encoded representation from its canonical unit representation via:
 
 ```
 encoded_value = (decoded_value - sample_offset_in_unit) / sample_resolution_in_unit
 ```
 
-where the division is followed/preceded by whatever quantization strategy is chosen by the user (e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be "decoded" from its integer representation to its representation in canonical units via:
+where the division is followed/preceded by whatever quantization strategy is chosen by the user (e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be converted from its encoded representation to its canonical unit representation via:
 
 ```
 decoded_value = (encoded_value * sample_resolution_in_unit) + sample_offset_in_unit
