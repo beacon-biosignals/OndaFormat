@@ -183,7 +183,7 @@ An individual value in a multichannel sample can be converted to its encoded rep
 encoded_value = (decoded_value - sample_offset_in_unit) / sample_resolution_in_unit
 ```
 
-where the division is followed/preceded by whatever quantization strategy is chosen by the user (e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be converted from its encoded representation to its canonical unit representation via:
+where the division is followed/preceded by whatever quantization strategy is chosen by the user (e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be converted ("decoded") from its encoded representation to its canonical unit representation via:
 
 ```
 decoded_value = (encoded_value * sample_resolution_in_unit) + sample_offset_in_unit
