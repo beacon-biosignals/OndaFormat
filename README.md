@@ -23,7 +23,7 @@ This document uses the term...
 
 - ...**"signal"** to refer to the digitized output of a process. A signal is comprised of metadata (e.g. LPCM encoding, channel information, sample data path/format information, etc.) and associated multi-channel sample data.
 
-- ...**"recording"** to refer a collection of one or more signals recorded simultaneously over a well-defined time period.
+- ...**"recording"** to refer a collection of one or more signals recorded simultaneously over some time period.
 
 - ...**"annotation"** to refer to a piece of (meta)data associated with a specific time span within a specific recording.
 
