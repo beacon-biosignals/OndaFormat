@@ -96,18 +96,19 @@ An `*.annotations` file contains an Arrow table with the following columns in th
 
 1. `recording` (128-bit `FixedSizeBinary`): The UUID identifying the recording with which the annotation is associated.
 2. `id` (128-bit `FixedSizeBinary`): The UUID identifying the annotation.
-3. `start` (`Duration` w/ `NANOSECOND` unit): The annotation's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
-4. `stop` (`Duration` w/ `NANOSECOND` unit): The annotation's stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than the annotation's corresponding `start`.
-5. `value` (author-specified type): The value associated with the annotation. This column may be any type as specified by the author of the file.
+3. `span` (`Struct`): The annotations's time span within the recording. This structure has two fields:
+    - `start` (`Duration` w/ `NANOSECOND` unit): The start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
+    - `stop` (`Duration` w/ `NANOSECOND` unit): The stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than `start`.
+4. `value` (author-specified type): The value associated with the annotation. This column may be any type as specified by the author of the file.
 
 An example of an `*.annotations` table (whose `value` column happens to contain strings):
 
-| `recording`                          | `id`                                 | `start` | `stop` | `value`                       |
-|--------------------------------------|--------------------------------------|---------|--------|-------------------------------|
-| `0xb14d2c6d8d844e46824f5c5d857215b4` | `0x81b17ea902504371954e7b8b167236a6` | `5e9`   | `6e9`  | `"this is a value"`           |
-| `0xb14d2c6d8d844e46824f5c5d857215b4` | `0xdaebbd1b0cab4b89acdde51f9c9a1d7c` | `3e9`   | `7e9`  | `"this is a different value"` |
-| `0x625fa5eadfb24252b58d1eb350fa7df6` | `0x11aeeb4b743149808b53547642652f0e` | `1e9`   | `2e9`  | `"this is another value"`     |
-| `0xa5c01f0e50fe4acba065fcf474e263f5` | `0xbc0be95e3da2495391daba233f035acc` | `2e9`   | `3e9`  | `"wow what a great value"`    |
+| `recording`                          | `id`                                 | `span`                  | `value`                       |
+|--------------------------------------|--------------------------------------|-------------------------|-------------------------------|
+| `0xb14d2c6d8d844e46824f5c5d857215b4` | `0x81b17ea902504371954e7b8b167236a6` | `(start=5e9, stop=6e9)` | `"this is a value"`           |
+| `0xb14d2c6d8d844e46824f5c5d857215b4` | `0xdaebbd1b0cab4b89acdde51f9c9a1d7c` | `(start=3e9, stop=7e9)` | `"this is a different value"` |
+| `0x625fa5eadfb24252b58d1eb350fa7df6` | `0x11aeeb4b743149808b53547642652f0e` | `(start=1e9, stop=2e9)` | `"this is another value"`     |
+| `0xa5c01f0e50fe4acba065fcf474e263f5` | `0xbc0be95e3da2495391daba233f035acc` | `(start=2e9, stop=3e9)` | `"wow what a great value"`    |
 
 ### `*.signals` Files
 
@@ -118,16 +119,15 @@ A `*.signals` file contains an Arrow table with the following columns in the fol
 3. `file_format` (`Utf8`): A string identifying the format of the signal's associated sample data file. All Onda readers/writers must support the following file formats (and may define and support additional values as desired):
     - `"lpcm"`: signals are stored in raw interleaved LPCM format (see format description below).
     - `"lpcm.zst"`: signals stored in raw interleaved LPCM format and compressed via [`zstd`](https://github.com/facebook/zstd)
-4. `start` (`Duration` w/ `NANOSECOND` unit): The signal's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
-5. `stop` (`Duration` w/ `NANOSECOND` unit): The signal's stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than the signal's corresponding `start`.
-6. `kind` (`Utf8`): A string identifying the kind of signal that the row represents. Valid `kind` values are alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores.
-7. `channels` (`List` of `Utf8`): A list of strings where the `i`th element is the name of the signal's `i`th channel. A valid channel name...
+4. `span` (`Struct`): The signal's time span within the recording. This has the same structure as an `*.annotations` table's `span` column (specified in the previous section).
+5. `kind` (`Utf8`): A string identifying the kind of signal that the row represents. Valid `kind` values are alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores.
+6. `channels` (`List` of `Utf8`): A list of strings where the `i`th element is the name of the signal's `i`th channel. A valid channel name...
     - ...conforms to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores).
     - ...conforms to an `a-b` format where `a` and `b` are valid channel names. Furthermore, to allow arbitrary cross-signal referencing, `a` and/or `b` may be channel names from other signals contained in the recording. If this is the case, such a name must be qualified in the format `signal_name.channel_name`. For example, an `eog` signal might have a channel named `left-eeg.m1` (the left eye electrode referenced to the mastoid electrode from a 10-20 EEG signal).
-8. `sample_unit` (`Utf8`): The name of the signal's canonical unit as a string. This string should conform to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores), should be singular and not contain abbreviations (e.g. `"uV"` is bad, `"microvolt"` is good; `"l/m"` is bad, `"liter_per_minute"` is good).
-9. `sample_resolution_in_unit` (`FloatingPoint` w/ `DOUBLE` precision): The signal's resolution in its canonical unit. This value, along with the signal's `sample_type` and `sample_offset_in_unit` fields, determines the signal's LPCM quantization scheme.
-10. `sample_offset_in_unit` (`FloatingPoint` w/ `DOUBLE` precision): The signal's zero-offset in its canonical unit (thus allowing LPCM encodings that are centered around non-zero values).
-11. `sample_type` (`Utf8`): The primitive scalar type used to encode each sample in the signal. Valid values are:
+7. `sample_unit` (`Utf8`): The name of the signal's canonical unit as a string. This string should conform to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores), should be singular and not contain abbreviations (e.g. `"uV"` is bad, `"microvolt"` is good; `"l/m"` is bad, `"liter_per_minute"` is good).
+8. `sample_resolution_in_unit` (`FloatingPoint` w/ `DOUBLE` precision): The signal's resolution in its canonical unit. This value, along with the signal's `sample_type` and `sample_offset_in_unit` fields, determines the signal's LPCM quantization scheme.
+9. `sample_offset_in_unit` (`FloatingPoint` w/ `DOUBLE` precision): The signal's zero-offset in its canonical unit (thus allowing LPCM encodings that are centered around non-zero values).
+10. `sample_type` (`Utf8`): The primitive scalar type used to encode each sample in the signal. Valid values are:
     - `"int8"`: signed little-endian 1-byte integer
     - `"int16"`: signed little-endian 2-byte integer
     - `"int32"`: signed little-endian 4-byte integer
@@ -138,16 +138,16 @@ A `*.signals` file contains an Arrow table with the following columns in the fol
     - `"uint64"`: unsigned little-endian 8-byte integer
     - `"float32"`: 32-bit floating point number
     - `"float64"`: 64-bit floating point number
-12. `sample_rate` (`FloatingPoint` w/ `DOUBLE` precision): The signal's sample rate.
+11. `sample_rate` (`FloatingPoint` w/ `DOUBLE` precision): The signal's sample rate.
 
 An example `*.signals` table:
 
-| `recording`                          | `file_path`                                        | `file_format`                                            | `start` | `stop`    | `kind`     | `channels`                              | `sample_unit` | `sample_resolution_in_unit` | `sample_offset_in_unit` | `sample_type` | `sample_rate` |
-|--------------------------------------|----------------------------------------------------|----------------------------------------------------------|---------|-----------|------------|-----------------------------------------|---------------|-----------------------------|-------------------------|---------------|---------------|
-| `0xb14d2c6d8d844e46824f5c5d857215b4` | `"./relative/path/to/samples.lpcm"`                | `"lpcm"`                                                 | `10e9`  | `10900e9` | `"eeg"`    | `["fp1", "f3", "f7", "fz", "f4", "f8"]` | `"microvolt"` | `0.25`                      | `3.6`                   | `"int16"`     | `256`         |
-| `0xb14d2c6d8d844e46824f5c5d857215b4` | `"s3://bucket/prefix/obj.lpcm.zst"`                | `"lpcm.zst"`                                             | `0`     | `10800e9` | `"ecg"`    | `["avl", "avr"]`                        | `"microvolt"` | `0.5`                       | `1.0`                   | `"int16"`     | `128.3`       |
-| `0x625fa5eadfb24252b58d1eb350fa7df6` | `"s3://other-bucket/prefix/obj_with_no_extension"` | `"flac"`                                                 | `100e9` | `500e9`   | `"audio"`  | `["left", "right"]`                     | `"scalar"`    | `1.0`                       | `0.0`                   | `"float32"`   | `44100`       |
-| `0xa5c01f0e50fe4acba065fcf474e263f5` | `"./another-relative/path/to/samples"`             | `"custom_price_format:{\"parseable_json_parameter\":3}"` | `0`     | `3600e9`  | `"price"`  | `["price"]`                             | `"dollar"`    | `0.01`                      | `0.0`                   | `"uint32"`    | `50.75`       |
+| `recording`                          | `file_path`                                        | `file_format`                                            | `span`                       | `kind`     | `channels`                              | `sample_unit` | `sample_resolution_in_unit` | `sample_offset_in_unit` | `sample_type` | `sample_rate` |
+|--------------------------------------|----------------------------------------------------|----------------------------------------------------------|------------------------------|------------|-----------------------------------------|---------------|-----------------------------|-------------------------|---------------|---------------|
+| `0xb14d2c6d8d844e46824f5c5d857215b4` | `"./relative/path/to/samples.lpcm"`                | `"lpcm"`                                                 | `(start=10e9, stop=10900e9)` | `"eeg"`    | `["fp1", "f3", "f7", "fz", "f4", "f8"]` | `"microvolt"` | `0.25`                      | `3.6`                   | `"int16"`     | `256`         |
+| `0xb14d2c6d8d844e46824f5c5d857215b4` | `"s3://bucket/prefix/obj.lpcm.zst"`                | `"lpcm.zst"`                                             | `(start=0, stop=10800e9)`    | `"ecg"`    | `["avl", "avr"]`                        | `"microvolt"` | `0.5`                       | `1.0`                   | `"int16"`     | `128.3`       |
+| `0x625fa5eadfb24252b58d1eb350fa7df6` | `"s3://other-bucket/prefix/obj_with_no_extension"` | `"flac"`                                                 | `(start=100e9, stop=500e9)`  | `"audio"`  | `["left", "right"]`                     | `"scalar"`    | `1.0`                       | `0.0`                   | `"float32"`   | `44100`       |
+| `0xa5c01f0e50fe4acba065fcf474e263f5` | `"./another-relative/path/to/samples"`             | `"custom_price_format:{\"parseable_json_parameter\":3}"` | `(start=0, stop=3600e9)`     | `"price"`  | `["price"]`                             | `"dollar"`    | `0.01`                      | `0.0`                   | `"uint32"`    | `50.75`       |
 
 ### Sample Data Files
 
