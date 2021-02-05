@@ -92,18 +92,19 @@ Each of the aforementioned file types are further specified in the following sec
 
 ### `*.annotations` Files
 
-An `*.annotations` file contains an Arrow table with the following columns in the following order:
+An `*.annotations` file contains an Arrow table whose first 3 columns are:
 
 1. `recording` (128-bit `FixedSizeBinary`): The UUID identifying the recording with which the annotation is associated.
 2. `id` (128-bit `FixedSizeBinary`): The UUID identifying the annotation.
 3. `span` (`Struct`): The annotations's time span within the recording. This structure has two fields:
     - `start` (`Duration` w/ `NANOSECOND` unit): The start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
     - `stop` (`Duration` w/ `NANOSECOND` unit): The stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than `start`.
-4. `value` (author-specified type): The value associated with the annotation. This column may be any type as specified by the author of the file.
+
+Note that this table may contain additional author-provided columns following the columns mandated above.
 
 An example of an `*.annotations` table (whose `value` column happens to contain strings):
 
-| `recording`                          | `id`                                 | `span`                  | `value`                       |
+| `recording`                          | `id`                                 | `span`                  | `my_custom_value`             |
 |--------------------------------------|--------------------------------------|-------------------------|-------------------------------|
 | `0xb14d2c6d8d844e46824f5c5d857215b4` | `0x81b17ea902504371954e7b8b167236a6` | `(start=5e9, stop=6e9)` | `"this is a value"`           |
 | `0xb14d2c6d8d844e46824f5c5d857215b4` | `0xdaebbd1b0cab4b89acdde51f9c9a1d7c` | `(start=3e9, stop=7e9)` | `"this is a different value"` |
@@ -112,7 +113,7 @@ An example of an `*.annotations` table (whose `value` column happens to contain 
 
 ### `*.signals` Files
 
-A `*.signals` file contains an Arrow table with the following columns in the following order:
+A `*.signals` file contains an Arrow table whose first 11 columns are:
 
 1. `recording` (128-bit `FixedSizeBinary`): The UUID identifying the recording with which the annotation is associated.
 2. `file_path` (`Utf8`): A string identifying the location of the signal's associated sample data file. This string must either be a [valid URI](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier) or a relative file path (specifically, relative to the location of the `*.signals` file itself).
@@ -140,14 +141,16 @@ A `*.signals` file contains an Arrow table with the following columns in the fol
     - `"float64"`: 64-bit floating point number
 11. `sample_rate` (`FloatingPoint` w/ `DOUBLE` precision): The signal's sample rate.
 
+Note that this table may contain additional author-provided columns after the columns mandated above.
+
 An example `*.signals` table:
 
-| `recording`                          | `file_path`                                        | `file_format`                                            | `span`                       | `kind`     | `channels`                              | `sample_unit` | `sample_resolution_in_unit` | `sample_offset_in_unit` | `sample_type` | `sample_rate` |
-|--------------------------------------|----------------------------------------------------|----------------------------------------------------------|------------------------------|------------|-----------------------------------------|---------------|-----------------------------|-------------------------|---------------|---------------|
-| `0xb14d2c6d8d844e46824f5c5d857215b4` | `"./relative/path/to/samples.lpcm"`                | `"lpcm"`                                                 | `(start=10e9, stop=10900e9)` | `"eeg"`    | `["fp1", "f3", "f7", "fz", "f4", "f8"]` | `"microvolt"` | `0.25`                      | `3.6`                   | `"int16"`     | `256`         |
-| `0xb14d2c6d8d844e46824f5c5d857215b4` | `"s3://bucket/prefix/obj.lpcm.zst"`                | `"lpcm.zst"`                                             | `(start=0, stop=10800e9)`    | `"ecg"`    | `["avl", "avr"]`                        | `"microvolt"` | `0.5`                       | `1.0`                   | `"int16"`     | `128.3`       |
-| `0x625fa5eadfb24252b58d1eb350fa7df6` | `"s3://other-bucket/prefix/obj_with_no_extension"` | `"flac"`                                                 | `(start=100e9, stop=500e9)`  | `"audio"`  | `["left", "right"]`                     | `"scalar"`    | `1.0`                       | `0.0`                   | `"float32"`   | `44100`       |
-| `0xa5c01f0e50fe4acba065fcf474e263f5` | `"./another-relative/path/to/samples"`             | `"custom_price_format:{\"parseable_json_parameter\":3}"` | `(start=0, stop=3600e9)`     | `"price"`  | `["price"]`                             | `"dollar"`    | `0.01`                      | `0.0`                   | `"uint32"`    | `50.75`       |
+| `recording`                          | `file_path`                                        | `file_format`                                            | `span`                       | `kind`     | `channels`                              | `sample_unit` | `sample_resolution_in_unit` | `sample_offset_in_unit` | `sample_type` | `sample_rate` | `my_custom_value`             |
+|--------------------------------------|----------------------------------------------------|----------------------------------------------------------|------------------------------|------------|-----------------------------------------|---------------|-----------------------------|-------------------------|---------------|---------------|-------------------------------|
+| `0xb14d2c6d8d844e46824f5c5d857215b4` | `"./relative/path/to/samples.lpcm"`                | `"lpcm"`                                                 | `(start=10e9, stop=10900e9)` | `"eeg"`    | `["fp1", "f3", "f7", "fz", "f4", "f8"]` | `"microvolt"` | `0.25`                      | `3.6`                   | `"int16"`     | `256`         | `"this is a value"`           |
+| `0xb14d2c6d8d844e46824f5c5d857215b4` | `"s3://bucket/prefix/obj.lpcm.zst"`                | `"lpcm.zst"`                                             | `(start=0, stop=10800e9)`    | `"ecg"`    | `["avl", "avr"]`                        | `"microvolt"` | `0.5`                       | `1.0`                   | `"int16"`     | `128.3`       | `"this is a different value"` |
+| `0x625fa5eadfb24252b58d1eb350fa7df6` | `"s3://other-bucket/prefix/obj_with_no_extension"` | `"flac"`                                                 | `(start=100e9, stop=500e9)`  | `"audio"`  | `["left", "right"]`                     | `"scalar"`    | `1.0`                       | `0.0`                   | `"float32"`   | `44100`       | `"this is another value"`     |
+| `0xa5c01f0e50fe4acba065fcf474e263f5` | `"./another-relative/path/to/samples"`             | `"custom_price_format:{\"parseable_json_parameter\":3}"` | `(start=0, stop=3600e9)`     | `"price"`  | `["price"]`                             | `"dollar"`    | `0.01`                      | `0.0`                   | `"uint32"`    | `50.75`       | `"wow what a great value"`    |
 
 ### Sample Data Files
 
