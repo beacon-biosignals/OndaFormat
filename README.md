@@ -80,19 +80,19 @@ Note that, in accordance with the semantic versioning specification, minor incre
 
 The Onda format describes three different types of files:
 
-- `*.annotations` files: [Arrow files](https://arrow.apache.org/docs/format/Columnar.html#ipc-file-format) that contain annotation (meta)data associated with a dataset.
-- `*.signals` files: Arrow files that contain signal metadata (e.g. LPCM encoding, channel information, sample data path/format, etc.) required to find and read sample data files associated with a dataset.
+- `*.onda.annotations.arrow` files: [Arrow files](https://arrow.apache.org/docs/format/Columnar.html#ipc-file-format) that contain annotation (meta)data associated with a dataset.
+- `*.onda.signals.arrow` files: Arrow files that contain signal metadata (e.g. LPCM encoding, channel information, sample data path/format, etc.) required to find and read sample data files associated with a dataset.
 - sample data files: Files of user-defined formats that store the sample data associated with signals.
 
-Note that `*.annotations` files and `*.signals` files are largely orthogonal to one another - there's nothing inherent to the Onda format that prevents dataset producers/consumers from separately constructing/manipulating/transferring/analyzing these files. Furthermore, there's nothing that prevents dataset producers/consumers from working with multiple files of the same type referencing the same set of recordings (e.g. splitting all of a dataset's annotations across multiple `*.annotations` files).
+Note that `*.onda.annotations.arrow` files and `*.onda.signals.arrow` files are largely orthogonal to one another - there's nothing inherent to the Onda format that prevents dataset producers/consumers from separately constructing/manipulating/transferring/analyzing these files. Furthermore, there's nothing that prevents dataset producers/consumers from working with multiple files of the same type referencing the same set of recordings (e.g. splitting all of a dataset's annotations across multiple `*.onda.annotations.arrow` files).
 
-The Arrow tables contained in `*.annotations` and `*.signals` must have [attached custom metadata](https://arrow.apache.org/docs/format/Columnar.html#custom-application-metadata) containing the key `"onda_format_version"` whose value specifies the version of the Onda format that an Onda reader must support in order to properly read the file. This string takes the form `"vM.m.p"` where `M` is a major version number, `m` is a minor version number, and `p` is a patch version number.
+The Arrow tables contained in `*.onda.annotations.arrow` and `*.onda.signals.arrow` must have [attached custom metadata](https://arrow.apache.org/docs/format/Columnar.html#custom-application-metadata) containing the key `"onda_format_version"` whose value specifies the version of the Onda format that an Onda reader must support in order to properly read the file. This string takes the form `"vM.m.p"` where `M` is a major version number, `m` is a minor version number, and `p` is a patch version number.
 
 Each of the aforementioned file types are further specified in the following sections. These sections refer to the [logical types defined by the Arrow specification](https://github.com/apache/arrow/blob/master/format/Schema.fbs). Onda reader/writer implementations may additionally employ Arrow extension types that directly alias a column's specified logical type in order to support application-level features (first-class UUID support, custom `file_path` type support, etc.).
 
-### `*.annotations` Files
+### `*.onda.annotations.arrow` Files
 
-An `*.annotations` file contains an Arrow table whose first 3 columns are:
+An `*.onda.annotations.arrow` file contains an Arrow table whose first 3 columns are:
 
 1. `recording` (128-bit `FixedSizeBinary`): The UUID identifying the recording with which the annotation is associated.
 2. `id` (128-bit `FixedSizeBinary`): The UUID identifying the annotation.
@@ -102,7 +102,7 @@ An `*.annotations` file contains an Arrow table whose first 3 columns are:
 
 Note that this table may contain additional author-provided columns following the columns mandated above.
 
-An example of an `*.annotations` table (whose `value` column happens to contain strings):
+An example of an `*.onda.annotations.arrow` table (whose `value` column happens to contain strings):
 
 | `recording`                          | `id`                                 | `span`                  | `my_custom_value`             |
 |--------------------------------------|--------------------------------------|-------------------------|-------------------------------|
@@ -111,16 +111,16 @@ An example of an `*.annotations` table (whose `value` column happens to contain 
 | `0x625fa5eadfb24252b58d1eb350fa7df6` | `0x11aeeb4b743149808b53547642652f0e` | `(start=1e9, stop=2e9)` | `"this is another value"`     |
 | `0xa5c01f0e50fe4acba065fcf474e263f5` | `0xbc0be95e3da2495391daba233f035acc` | `(start=2e9, stop=3e9)` | `"wow what a great value"`    |
 
-### `*.signals` Files
+### `*.onda.signals.arrow` Files
 
-A `*.signals` file contains an Arrow table whose first 11 columns are:
+A `*.onda.signals.arrow` file contains an Arrow table whose first 11 columns are:
 
 1. `recording` (128-bit `FixedSizeBinary`): The UUID identifying the recording with which the annotation is associated.
-2. `file_path` (`Utf8`): A string identifying the location of the signal's associated sample data file. This string must either be a [valid URI](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier) or a relative file path (specifically, relative to the location of the `*.signals` file itself).
+2. `file_path` (`Utf8`): A string identifying the location of the signal's associated sample data file. This string must either be a [valid URI](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier) or a relative file path (specifically, relative to the location of the `*.onda.signals.arrow` file itself).
 3. `file_format` (`Utf8`): A string identifying the format of the signal's associated sample data file. All Onda readers/writers must support the following file formats (and may define and support additional values as desired):
     - `"lpcm"`: signals are stored in raw interleaved LPCM format (see format description below).
     - `"lpcm.zst"`: signals stored in raw interleaved LPCM format and compressed via [`zstd`](https://github.com/facebook/zstd)
-4. `span` (`Struct`): The signal's time span within the recording. This has the same structure as an `*.annotations` table's `span` column (specified in the previous section).
+4. `span` (`Struct`): The signal's time span within the recording. This has the same structure as an `*.onda.annotations.arrow` table's `span` column (specified in the previous section).
 5. `kind` (`Utf8`): A string identifying the kind of signal that the row represents. Valid `kind` values are alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores.
 6. `channels` (`List` of `Utf8`): A list of strings where the `i`th element is the name of the signal's `i`th channel. A valid channel name...
     - ...conforms to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores).
@@ -143,7 +143,7 @@ A `*.signals` file contains an Arrow table whose first 11 columns are:
 
 Note that this table may contain additional author-provided columns after the columns mandated above.
 
-An example `*.signals` table:
+An example `*.onda.signals.arrow` table:
 
 | `recording`                          | `file_path`                                        | `file_format`                                            | `span`                       | `kind`     | `channels`                              | `sample_unit` | `sample_resolution_in_unit` | `sample_offset_in_unit` | `sample_type` | `sample_rate` | `my_custom_value`             |
 |--------------------------------------|----------------------------------------------------|----------------------------------------------------------|------------------------------|------------|-----------------------------------------|---------------|-----------------------------|-------------------------|---------------|---------------|-------------------------------|
@@ -200,7 +200,7 @@ In this section, we describe several alternative technologies/solutions consider
 
 - HDF5: HDF5 was a candidate for Onda's de facto underlying storage layer. While featureful, ubiquitous, and technically based on an open standard, HDF5 is [infamous for being a hefty dependency with a fairly complex reference implementation](https://cyrille.rossant.net/moving-away-hdf5/). While HDF5 solves many problems inherent to filesystem-based storage, most use cases for Onda involve storing large binary blobs in domain-specific formats that already exist quite naturally as files on a filesystem. Though it was decided that Onda should not explicitly depend on HDF5, nothing inherently technically precludes Onda dataset content from being stored in HDF5 in the same manner as any other similarly structured filesystem directory. For practical purposes, however, Onda readers/writers may not necessarily automatically be able to read such a dataset unless they explicitly feature HDF5 support (since HDF5 support isn't mandated by the format).
 
-- Avro: Avro was originally considered as an alternative to Onda's current approach (associating one sample data file per row in `*.signals`). Avro's consideration was [initially motivated by Uber's use of the format in a manner that was extremely similar to an early Onda prototype's use of NPY](https://eng.uber.com/hdfs-file-format-apache-spark/). Unfortunately, it seems that most of the well-maintained tooling for Avro is Spark-centric; in fact, the overarching Avro project [has struggled (until very recently) to keep a dedicated set of maintainers engaged with the project](https://whimsy.apache.org/board/minutes/Avro.html). Avro's most desirable features, from the perspective of Onda, was its compression and "random" row access. However, early tests indicated that neither of those features worked particularly well for signals of interest compared to domain-specific seekable compression formats like FLAC.
+- Avro: Avro was originally considered as an alternative to Onda's current approach (associating one sample data file per row in `*.onda.signals.arrow`). Avro's consideration was [initially motivated by Uber's use of the format in a manner that was extremely similar to an early Onda prototype's use of NPY](https://eng.uber.com/hdfs-file-format-apache-spark/). Unfortunately, it seems that most of the well-maintained tooling for Avro is Spark-centric; in fact, the overarching Avro project [has struggled (until very recently) to keep a dedicated set of maintainers engaged with the project](https://whimsy.apache.org/board/minutes/Avro.html). Avro's most desirable features, from the perspective of Onda, was its compression and "random" row access. However, early tests indicated that neither of those features worked particularly well for signals of interest compared to domain-specific seekable compression formats like FLAC.
 
 - EDF/MEF/etc.: Onda was originally motivated by bulk electrophysiological dataset manipulation, a domain in which there are many different recording file formats that are all generally designed to support a one-file-per-recording use case and are constrained to certain domain-specific assumptions (e.g. specific bit depth assumptions, annotations stored within signal artifacts, etc.). Technically, since Onda itself is agnostic to choice of file formats used for signal serialization, one could store Onda sample data in EDF/MEF.
 
