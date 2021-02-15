@@ -126,8 +126,8 @@ A `*.onda.signals.arrow` file contains an Arrow table whose first 11 columns are
     - ...conforms to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores).
     - ...conforms to an `a-b` format where `a` and `b` are valid channel names. Furthermore, to allow arbitrary cross-signal referencing, `a` and/or `b` may be channel names from other signals contained in the recording. If this is the case, such a name must be qualified in the format `signal_name.channel_name`. For example, an `eog` signal might have a channel named `left-eeg.m1` (the left eye electrode referenced to the mastoid electrode from a 10-20 EEG signal).
 7. `sample_unit` (`Utf8`): The name of the signal's canonical unit as a string. This string should conform to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores), should be singular and not contain abbreviations (e.g. `"uV"` is bad, `"microvolt"` is good; `"l/m"` is bad, `"liter_per_minute"` is good).
-8. `sample_resolution_in_unit` (`FloatingPoint` w/ `DOUBLE` precision): The signal's resolution in its canonical unit. This value, along with the signal's `sample_type` and `sample_offset_in_unit` fields, determines the signal's LPCM quantization scheme.
-9. `sample_offset_in_unit` (`FloatingPoint` w/ `DOUBLE` precision): The signal's zero-offset in its canonical unit (thus allowing LPCM encodings that are centered around non-zero values).
+8. `sample_resolution_in_unit` (`Int` or `FloatingPoint`): The signal's resolution in its canonical unit. This value, along with the signal's `sample_type` and `sample_offset_in_unit` fields, determines the signal's LPCM quantization scheme.
+9. `sample_offset_in_unit`  (`Int` or `FloatingPoint`): The signal's zero-offset in its canonical unit (thus allowing LPCM encodings that are centered around non-zero values).
 10. `sample_type` (`Utf8`): The primitive scalar type used to encode each sample in the signal. Valid values are:
     - `"int8"`: signed little-endian 1-byte integer
     - `"int16"`: signed little-endian 2-byte integer
@@ -139,7 +139,7 @@ A `*.onda.signals.arrow` file contains an Arrow table whose first 11 columns are
     - `"uint64"`: unsigned little-endian 8-byte integer
     - `"float32"`: 32-bit floating point number
     - `"float64"`: 64-bit floating point number
-11. `sample_rate` (`FloatingPoint` w/ `DOUBLE` precision): The signal's sample rate.
+11. `sample_rate` (`Int` or `FloatingPoint`): The signal's sample rate.
 
 Note that this table may contain additional author-provided columns after the columns mandated above.
 
