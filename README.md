@@ -2,10 +2,11 @@
 
 **Onda** is a lightweight format for storing and manipulating sets of multi-sensor, multi-channel, LPCM-encodable, annotated, time-series recordings.
 
-The latest tagged version is [v0.4.1](https://github.com/beacon-biosignals/OndaFormat/tree/v0.4.1).
+The latest tagged version is [v0.5.0](https://github.com/beacon-biosignals/OndaFormat/tree/v0.5.0).
 
 This document contains:
 
+- Onda's [Terminology](#terminology)
 - Onda's [Design Principles](#design-principles)
 - Onda's [Specification](#specification)
 - [Potential Alternative Technologies/Approaches](#potential-alternatives)
@@ -14,17 +15,21 @@ Implementations:
 
 - Julia: https://github.com/beacon-biosignals/Onda.jl
 
-## Design Principles
+## Terminology
 
-[\[back to top\]](#onda-dataset-format)
-
-### Onda uses the term...
+This document uses the term...
 
 - ...**"LPCM"** to refer to [linear pulse code modulation](https://en.wikipedia.org/wiki/Pulse-code_modulation), a form of signal encoding where multivariate waveforms are digitized as a series of samples uniformly spaced over time and quantized to a uniformly spaced grid.
 
-- ...**"signal"** to mean the digitized output of an individual sensor or process. A signal is comprised of an LPCM encoding, per-channel information, and a series of multi-channel samples.
+- ...**"signal"** to refer to the digitized output of a process. A signal is comprised of metadata (e.g. LPCM encoding, channel information, sample data path/format information, etc.) and associated multi-channel sample data.
 
-- ...**"recording"** to mean a collection of one or more signals recorded simultaneously over a well-defined time period.
+- ...**"recording"** to refer a collection of one or more signals recorded simultaneously over some time period.
+
+- ...**"annotation"** to refer to a piece of (meta)data associated with a specific time span within a specific recording.
+
+## Design Principles
+
+[\[back to top\]](#onda-dataset-format)
 
 ### Onda is useful...
 
@@ -45,14 +50,14 @@ Implementations:
     - ...popular distributed analytics tools (e.g. Spark, TensorFlow).
     - ...traditional databases (e.g. PostgresSQL, Cassandra).
     - ...object-based storage systems (e.g. S3, GCP Cloud Storage).
-- ...enable metadata, annotations etc. to be stored and processed separately from raw signal artifacts without significant file system overhead.
-- ...enable extensibility without sacrificing interpretability. New signal encodings, annotations, compression formats, etc. should all be user-definable by design.
+- ...enable metadata, annotations etc. to be stored and processed separately from raw sample data without significant communication overhead.
+- ...enable extensibility without sacrificing interpretability. New signal encodings, annotations, sample data file formats, etc. should all be user-definable by design.
 - ...be simple enough that a decent programmer (with Google access) should be able to fully interpret (and write performant parsers for) an Onda dataset without ever reading Onda documentation.
 
 ### Onda is not...
 
-- ...a file format. Onda allows dataset authors to utilize whatever file format is most appropriate for a given signal, as long as the author provides a mechanism to deserialize sample data from that format to a standardized interleaved LPCM representation.
-- ...a database. The majority of an Onda dataset's mandated metadata is stored in a single, monolithic JSON-like manifest containing recording information, signal descriptions, annotations etc. This simple structure is tailored towards Onda's target regimes (see above), and is not intended to serve as a persistent backend for external services/applications.
+- ...a sample data file format. Onda allows dataset authors to utilize whatever file format is most appropriate for a given signal's sample data, as long as the author provides a mechanism to deserialize sample data from that format to a standardized interleaved LPCM representation.
+- ...a transactional database. The majority of an Onda dataset's mandated metadata is stored in tabular manifests containing recording information, signal descriptions, annotations etc. This simple structure is tailored towards Onda's target regimes (see above), and is not intended to serve as a persistent backend for external services/applications.
 - ...an analytics platform. Onda seeks to provide a data model that is purposefully structured to enable various sorts of analysis, but the format itself does not mandate/describe any specific implementation of analysis utilities.
 
 ## Specification
@@ -67,132 +72,91 @@ This specification document is versioned in accordance with [semantic versioning
 - ...increments to `minor` correspond to changes/additions that are unlikely to break existing Onda readers
 - ...increments to `patch` correspond to purely textual changes, e.g. clarifying a phrase or fixing a typo
 
-### Directory Structure
+Note that, in accordance with the semantic versioning specification, minor increments in the `0.y.z` release series may include breaking changes:
 
-An Onda dataset is comprised entirely of a filesystem directory and that directory's contents. The directory's name may (but is not required to) have the extension `.onda` to signify that the directory is an Onda dataset.
+> Major version zero (0.y.z) is for initial development. Anything MAY change at any time. The public API SHOULD NOT be considered stable.
 
-An Onda dataset directory may contain any user-authored content, but **must** contain the following files/subdirectories (note, though, that the `samples` subdirectory may be elided if it is empty):
+### Overview
 
-```
-dataset_name.onda/
-    recordings.msgpack.zst
-    samples/
-    ⋮
-```
+The Onda format describes three different types of files:
 
-Each of the above files/subdirectories is described in detail later, but here's a quick overview:
+- `*.onda.annotations.arrow` files: [Arrow files](https://arrow.apache.org/docs/format/Columnar.html#ipc-file-format) that contain annotation (meta)data associated with a dataset.
+- `*.onda.signals.arrow` files: Arrow files that contain signal metadata (e.g. LPCM encoding, channel information, sample data path/format, etc.) required to find and read sample data files associated with a dataset.
+- sample data files: Files of user-defined formats that store the sample data associated with signals.
 
-- `recordings.msgpack.zst`: a [zstd](https://github.com/facebook/zstd)-compressed [MessagePack](https://msgpack.org/index.html) file which contains a map whose entries represent individual recordings in the dataset.
+Note that `*.onda.annotations.arrow` files and `*.onda.signals.arrow` files are largely orthogonal to one another - there's nothing inherent to the Onda format that prevents dataset producers/consumers from separately constructing/manipulating/transferring/analyzing these files. Furthermore, there's nothing that prevents dataset producers/consumers from working with multiple files of the same type referencing the same set of recordings (e.g. splitting all of a dataset's annotations across multiple `*.onda.annotations.arrow` files).
 
-- `samples/`: a subdirectory containing all sample data associated with the dataset, grouped into subdirectories for each recording. This subdirectory need not exist if it would be empty.
+The Arrow tables contained in `*.onda.annotations.arrow` and `*.onda.signals.arrow` must have [attached custom metadata](https://arrow.apache.org/docs/format/Columnar.html#custom-application-metadata) containing the key `"onda_format_version"` whose value specifies the version of the Onda format that an Onda reader must support in order to properly read the file. This string takes the form `"vM.m.p"` where `M` is a major version number, `m` is a minor version number, and `p` is a patch version number.
 
-- `⋮`: any additional content as provided by the dataset author.
+Each of the aforementioned file types are further specified in the following sections. These sections refer to the [logical types defined by the Arrow specification](https://github.com/apache/arrow/blob/master/format/Schema.fbs). Onda reader/writer implementations may additionally employ Arrow extension types that directly alias a column's specified logical type in order to support application-level features (first-class UUID support, custom `file_path` type support, etc.).
 
-### `recordings.msgpack.zst`
+### `*.onda.annotations.arrow` Files
 
-Decompressing `recordings.msgpack.zst` yields a MessagePack Array with two elements. The first element is a MessagePack Map that serves as a header, while the second element is a MessagePack Map whose entries are `<uuid>: <recording object>` pairs.
+An `*.onda.annotations.arrow` file contains an Arrow table whose first 3 columns are:
 
-The header object takes the same structure as the following example:
+1. `recording` (128-bit `FixedSizeBinary`): The UUID identifying the recording with which the annotation is associated.
+2. `id` (128-bit `FixedSizeBinary`): The UUID identifying the annotation.
+3. `span` (`Struct`): The annotations's time span within the recording. This structure has two fields:
+    - `start` (`Duration` w/ `NANOSECOND` unit): The start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
+    - `stop` (`Duration` w/ `NANOSECOND` unit): The stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than `start`.
 
-```
-{
-    "onda_format_version": "v0.3.0",
-    "ordered_keys": false
-}
-```
+Note that this table may contain additional author-provided columns following the columns mandated above.
 
-Below is a detailed description for each field of the header object:
+An example of an `*.onda.annotations.arrow` table (whose `value` column happens to contain strings):
 
-- `onda_format_version`: A string specifying the version of the Onda format that a reader must support in order to properly read this dataset. This string takes the form `"vM.m.p"` where `M` is a major version number, `m` is a minor version number, and `p` is a patch version number.
+| `recording`                          | `id`                                 | `span`                  | `my_custom_value`             |
+|--------------------------------------|--------------------------------------|-------------------------|-------------------------------|
+| `0xb14d2c6d8d844e46824f5c5d857215b4` | `0x81b17ea902504371954e7b8b167236a6` | `(start=5e9, stop=6e9)` | `"this is a value"`           |
+| `0xb14d2c6d8d844e46824f5c5d857215b4` | `0xdaebbd1b0cab4b89acdde51f9c9a1d7c` | `(start=3e9, stop=7e9)` | `"this is a different value"` |
+| `0x625fa5eadfb24252b58d1eb350fa7df6` | `0x11aeeb4b743149808b53547642652f0e` | `(start=1e9, stop=2e9)` | `"this is another value"`     |
+| `0xa5c01f0e50fe4acba065fcf474e263f5` | `0xbc0be95e3da2495391daba233f035acc` | `(start=2e9, stop=3e9)` | `"wow what a great value"`    |
 
-- `ordered_keys`: A boolean value. If `true`, readers may assume that all keys (except signal names) within each recording object in `recordings.msgpack.zst` are serialized in the exact order as the example given below. This ordering guarantee can facilitate increased parsing efficiency for implementations which choose to exploit it.
+### `*.onda.signals.arrow` Files
 
-Each `<uuid>: <recording object>` pair in the second MessagePack Map takes the same structure as the following example:
+A `*.onda.signals.arrow` file contains an Arrow table whose first 11 columns are:
 
-```
-"41459161-42bb-4e13-912f-6881ae356677": {
-    "signals": {
-        "eeg": {
-            "channel_names": ["fp1", "f3", "c3", "p3", "f7", "t3", "t5",
-                              "o1", "fz", "cz", "pz", "fp2", "f4", "c4",
-                              "p4", "f8", "t4", "t6", "o2"],
-            "start_nanosecond": 100000000,
-            "stop_nanosecond": 1850078125000,
-            "sample_unit": "microvolt",
-            "sample_resolution_in_unit": 0.25,
-            "sample_offset_in_unit": 0.0,
-            "sample_type": "int16",
-            "sample_rate": 256.0,
-            "file_extension": "lpcm.zst",
-            "file_options": nil
-        }
-        ⋮
-    },
-    "annotations": [
-        {
-            "value": "epileptiform_spike",
-            "start_nanosecond": 393500000000,
-            "stop_nanosecond": 394500000000
-        },
-        ⋮
-    ]
-}
-```
+1. `recording` (128-bit `FixedSizeBinary`): The UUID identifying the recording with which the annotation is associated.
+2. `file_path` (`Utf8`): A string identifying the location of the signal's associated sample data file. This string must either be a [valid URI](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier) or a relative file path (specifically, relative to the location of the `*.onda.signals.arrow` file itself).
+3. `file_format` (`Utf8`): A string identifying the format of the signal's associated sample data file. All Onda readers/writers must support the following file formats (and may define and support additional values as desired):
+    - `"lpcm"`: signals are stored in raw interleaved LPCM format (see format description below).
+    - `"lpcm.zst"`: signals stored in raw interleaved LPCM format and compressed via [`zstd`](https://github.com/facebook/zstd)
+4. `span` (`Struct`): The signal's time span within the recording. This has the same structure as an `*.onda.annotations.arrow` table's `span` column (specified in the previous section).
+5. `kind` (`Utf8`): A string identifying the kind of signal that the row represents. Valid `kind` values are alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores.
+6. `channels` (`List` of `Utf8`): A list of strings where the `i`th element is the name of the signal's `i`th channel. A valid channel name...
+    - ...conforms to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores).
+    - ...conforms to an `a-b` format where `a` and `b` are valid channel names. Furthermore, to allow arbitrary cross-signal referencing, `a` and/or `b` may be channel names from other signals contained in the recording. If this is the case, such a name must be qualified in the format `signal_name.channel_name`. For example, an `eog` signal might have a channel named `left-eeg.m1` (the left eye electrode referenced to the mastoid electrode from a 10-20 EEG signal).
+7. `sample_unit` (`Utf8`): The name of the signal's canonical unit as a string. This string should conform to the same format as `kind` (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores), should be singular and not contain abbreviations (e.g. `"uV"` is bad, `"microvolt"` is good; `"l/m"` is bad, `"liter_per_minute"` is good).
+8. `sample_resolution_in_unit` (`Int` or `FloatingPoint`): The signal's resolution in its canonical unit. This value, along with the signal's `sample_type` and `sample_offset_in_unit` fields, determines the signal's LPCM quantization scheme.
+9. `sample_offset_in_unit`  (`Int` or `FloatingPoint`): The signal's zero-offset in its canonical unit (thus allowing LPCM encodings that are centered around non-zero values).
+10. `sample_type` (`Utf8`): The primitive scalar type used to encode each sample in the signal. Valid values are:
+    - `"int8"`: signed little-endian 1-byte integer
+    - `"int16"`: signed little-endian 2-byte integer
+    - `"int32"`: signed little-endian 4-byte integer
+    - `"int64"`: signed little-endian 8-byte integer
+    - `"uint8"`: unsigned little-endian 1-byte integer
+    - `"uint16"`: unsigned little-endian 2-byte integer
+    - `"uint32"`: unsigned little-endian 4-byte integer
+    - `"uint64"`: unsigned little-endian 8-byte integer
+    - `"float32"`: 32-bit floating point number
+    - `"float64"`: 64-bit floating point number
+11. `sample_rate` (`Int` or `FloatingPoint`): The signal's sample rate.
 
-Below is a detailed description for each field of a recording object:
+Note that this table may contain additional author-provided columns after the columns mandated above.
 
-- `signals`: A map of `<name>: <signal object>` pairs representing the signals contained in the recording. The keys of the map are the signals' names as strings; valid signal names are alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores. The values of the map are objects with the following fields:
-    - `start_nanosecond`: The signal's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
-    - `stop_nanosecond`: The signal's stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than or equal to the signal's corresponding `start_nanosecond`.
-    - `channel_names`: An array of strings where the `i`th element is the name of the signal's `i`th channel name. A valid channel name...
-        - ...conforms to the same format as signal names (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores).
-        - ...conforms to an `a-b` format where `a` and `b` are valid channel names. Furthermore, to allow arbitrary cross-signal referencing, `a` and/or `b` may be channel names from other signals contained in the recording. If this is the case, such a name must be qualified in the format `signal_name.channel_name`. For example, an `eog` signal might have a channel named `left-eeg.m1` (the left eye electrode referenced to the mastoid electrode from a 10-20 EEG signal).
-    - `sample_unit`: The name of the signal's canonical unit as a string. This string should conform to the same format as signal names (alphanumeric, lowercase, `snake_case`, and contain no whitespace, punctuation, or leading/trailing underscores), should be singular and not contain abbreviations (e.g. `"uV"` is bad, while `"microvolt"` is good; `"l/m"` is bad, `"liter_per_minute"` is good).
-    - `sample_resolution_in_unit`: The signal's resolution in its canonical unit as a floating point value. This value, along with the signal's `sample_type` and `sample_offset_in_unit` fields, determines the signal's LPCM quantization scheme.
-    - `sample_offset_in_unit`: The signal's zero-offset in its canonical unit as a floating point value. This allows LPCM encodings to be centered around non-zero values.
-    - `sample_type`: The primitive scalar type used to encode each sample in the signal. Valid values are:
-        - `"int8"`: signed little-endian 1-byte integer
-        - `"int16"`: signed little-endian 2-byte integer
-        - `"int32"`: signed little-endian 4-byte integer
-        - `"int64"`: signed little-endian 8-byte integer
-        - `"uint8"`: unsigned little-endian 1-byte integer
-        - `"uint16"`: unsigned little-endian 2-byte integer
-        - `"uint32"`: unsigned little-endian 4-byte integer
-        - `"uint64"`: unsigned little-endian 8-byte integer
-    - `sample_rate`: The signal's sample rate as a floating point value.
-    - `file_extension`: The extension of the signal's corresponding file name in the `recordings` directory, indicating the (potentially compressed) format to which the given signal was serialized. All Onda readers/writers must support the following file extensions (and may define and support additional values as desired):
-        - `"lpcm"`: signals are stored in raw interleaved LPCM format (see format description below).
-        - `"lpcm.zst"`: signals stored in raw interleaved LPCM format and compressed via [`zstd`](https://github.com/facebook/zstd)
-    - `file_options`: Either `nil`, or an object where each key-value pair corresponds to a configuration setting for the file format indicated by the signal's `file_extension`. For Onda's standard `"lpcm"` and `"lpcm.zst"` file extensions, the only valid `file_options` value is simply `nil`. If an Onda reader/writer defines a new `file_extension` value, it must also define the valid `file_options` values corresponding to that `file_extension` value.
-- `annotations`: A set of annotation objects stored as an array. Each annotation is a string value associated with a given time window in the corresponding recording and has the following fields:
-    - `value`: The annotation's value as a string.
-    - `start_nanosecond`: The annotation's start offset in nanoseconds from the beginning of the recording. The minimum possible value is `0`.
-    - `stop_nanosecond`: The annotation's stop offset in nanoseconds (exclusive) from the beginning of the recording. This value must be greater than the annotation's corresponding `start_nanosecond`.
+An example `*.onda.signals.arrow` table:
 
-    As the `annotations` array represents a set, it is not permitted to contain duplicate objects. For practicality's sake, however, it is preferable for Onda readers to simply ignore/merge duplicates rather than error upon encountering them. Onda readers are additionally permitted to merge annotations with equal `value`s and directly consecutive and/or overlapping time spans into a single annotation whose `value` is the same, `start_nanosecond` matches the earliest `start_nanosecond`, and `stop_nanosecond` matches the latest `stop_nanosecond`.
+| `recording`                          | `file_path`                                        | `file_format`                                            | `span`                       | `kind`     | `channels`                              | `sample_unit` | `sample_resolution_in_unit` | `sample_offset_in_unit` | `sample_type` | `sample_rate` | `my_custom_value`             |
+|--------------------------------------|----------------------------------------------------|----------------------------------------------------------|------------------------------|------------|-----------------------------------------|---------------|-----------------------------|-------------------------|---------------|---------------|-------------------------------|
+| `0xb14d2c6d8d844e46824f5c5d857215b4` | `"./relative/path/to/samples.lpcm"`                | `"lpcm"`                                                 | `(start=10e9, stop=10900e9)` | `"eeg"`    | `["fp1", "f3", "f7", "fz", "f4", "f8"]` | `"microvolt"` | `0.25`                      | `3.6`                   | `"int16"`     | `256`         | `"this is a value"`           |
+| `0xb14d2c6d8d844e46824f5c5d857215b4` | `"s3://bucket/prefix/obj.lpcm.zst"`                | `"lpcm.zst"`                                             | `(start=0, stop=10800e9)`    | `"ecg"`    | `["avl", "avr"]`                        | `"microvolt"` | `0.5`                       | `1.0`                   | `"int16"`     | `128.3`       | `"this is a different value"` |
+| `0x625fa5eadfb24252b58d1eb350fa7df6` | `"s3://other-bucket/prefix/obj_with_no_extension"` | `"flac"`                                                 | `(start=100e9, stop=500e9)`  | `"audio"`  | `["left", "right"]`                     | `"scalar"`    | `1.0`                       | `0.0`                   | `"float32"`   | `44100`       | `"this is another value"`     |
+| `0xa5c01f0e50fe4acba065fcf474e263f5` | `"./another-relative/path/to/samples"`             | `"custom_price_format:{\"parseable_json_parameter\":3}"` | `(start=0, stop=3600e9)`     | `"price"`  | `["price"]`                             | `"dollar"`    | `0.01`                      | `0.0`                   | `"uint32"`    | `50.75`       | `"wow what a great value"`    |
 
-Note that `nil` values are entirely disallowed in recording objects except for the `file_options` field.
+### Sample Data Files
 
-### `samples/`
+All sample data is encoded as specified by the corresponding signal's `sample_type`, `sample_resolution_in_unit`, and `sample_offset_in_unit` fields, serialized to raw LPCM format, and formatted as specified by the signal's `file_format` field.
 
-The `samples` directory has the following structure:
-
-```
-samples/
-    <uuid_1>/<signal_1_name>.<signal_1.file_extension>
-             <signal_2_name>.<signal_2.file_extension>
-             ⋮
-    <uuid_2>/<signal_1_name>.<signal_1.file_extension>
-             <signal_2_name>.<signal_2.file_extension>
-             ⋮
-    ⋮
-```
-
-Each subdirectory in `samples` contains all sample data associated with the recording whose `uuid` field matches the subdirectory's name. Similarly, each file in a `recordings` subdirectory stores the sample data of the signal whose name matches the file's name. Note that a given recording's `samples` subdirectory need not exist if that recording's `signals` map is empty.
-
-All sample data is encoded as specified by the corresponding signal's `sample_type`, `sample_resolution_in_unit`, and `sample_offset_in_unit` fields, serialized to raw LPCM format, and formatted as specified by the signal's `file_extension` field.
-
-While Onda explicitly supports arbitrary choice of file format for serialized sample data via the `file_extension` and `file_options` fields, Onda reader/writer implementations should support (de)serialization of sample data from any implementation-supported format into the following standardized interleaved LPCM representation:
+While Onda explicitly supports arbitrary choice of file format for serialized sample data via the `file_format` field, Onda reader/writer implementations should support (de)serialization of sample data from any implementation-supported format into the following standardized interleaved LPCM representation:
 
 Given an `n`-channel signal, the byte offset for the `i`th channel value in the `j`th multichannel sample is given by `((i - 1) + (j - 1) * n) * byte_width(signal.sample_type)`. This layout can be expressed in the following table (where `w = byte_width(signal.sample_type)`):
 
@@ -216,13 +180,13 @@ Given an `n`-channel signal, the byte offset for the `i`th channel value in the 
 
 Values are stored in little-endian format.
 
-An individual value in a multichannel sample can be "encoded" from its representation in canonical units to its integer representation via:
+An individual value in a multichannel sample can be converted to its encoded representation from its canonical unit representation via:
 
 ```
 encoded_value = (decoded_value - sample_offset_in_unit) / sample_resolution_in_unit
 ```
 
-where the division is followed/preceded by whatever quantization strategy is chosen by the user (e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be "decoded" from its integer representation to its representation in canonical units via:
+where the division is followed/preceded by whatever quantization strategy is chosen by the user (e.g. rounding/truncation/dithering etc). Complementarily, an individual value in a multichannel sample can be converted ("decoded") from its encoded representation to its canonical unit representation via:
 
 ```
 decoded_value = (encoded_value * sample_resolution_in_unit) + sample_offset_in_unit
@@ -234,20 +198,16 @@ decoded_value = (encoded_value * sample_resolution_in_unit) + sample_offset_in_u
 
 In this section, we describe several alternative technologies/solutions considered during Onda's design.
 
-- HDF5: HDF5 was a candidate for Onda's de facto underlying storage layer. While featureful, ubiquitous, and technically based on an open standard, HDF5 is [infamous for being a hefty dependency with a fairly complex reference implementation](https://cyrille.rossant.net/moving-away-hdf5/). While HDF5 solves many problems inherent to filesystem-based storage, most use cases for Onda involve storing large binary blobs in domain-specific formats that already exist quite naturally as files on a filesystem. Though it was decided that Onda should not explicitly depend on HDF5, nothing inherently technically precludes an Onda dataset from being stored in HDF5 in the same manner as any other similarly structured filesystem directory. For practical purposes, however, Onda readers/writers may not necessarily automatically be able to read such a dataset unless they explicitly feature HDF5 support (since HDF5 support isn't mandated by the format).
+- HDF5: HDF5 was a candidate for Onda's de facto underlying storage layer. While featureful, ubiquitous, and technically based on an open standard, HDF5 is [infamous for being a hefty dependency with a fairly complex reference implementation](https://cyrille.rossant.net/moving-away-hdf5/). While HDF5 solves many problems inherent to filesystem-based storage, most use cases for Onda involve storing large binary blobs in domain-specific formats that already exist quite naturally as files on a filesystem. Though it was decided that Onda should not explicitly depend on HDF5, nothing inherently technically precludes Onda dataset content from being stored in HDF5 in the same manner as any other similarly structured filesystem directory. For practical purposes, however, Onda readers/writers may not necessarily automatically be able to read such a dataset unless they explicitly feature HDF5 support (since HDF5 support isn't mandated by the format).
 
-- Avro: Avro was primarily considered as an alternative to one-signal-per-file approach ultimately adopted by Onda, [initially motivated by Uber's use of the format in a manner that was extremely similar to an early Onda prototype's use of NPY](https://eng.uber.com/hdfs-file-format-apache-spark/). Unfortunately, it seems that most of the well-maintained tooling for Avro is Spark-centric; in fact, the overarching Avro project [has struggled (until very recently) to keep a dedicated set of maintainers engaged with the project](https://whimsy.apache.org/board/minutes/Avro.html). Avro's most desirable features, from the perspective of Onda, was its compression and "random" row access. However, early tests indicated that neither of those features worked particularly well for signals of interest compared to domain-specific seekable compression formats like FLAC.
+- Avro: Avro was originally considered as an alternative to Onda's current approach (associating one sample data file per row in `*.onda.signals.arrow`). Avro's consideration was [initially motivated by Uber's use of the format in a manner that was extremely similar to an early Onda prototype's use of NPY](https://eng.uber.com/hdfs-file-format-apache-spark/). Unfortunately, it seems that most of the well-maintained tooling for Avro is Spark-centric; in fact, the overarching Avro project [has struggled (until very recently) to keep a dedicated set of maintainers engaged with the project](https://whimsy.apache.org/board/minutes/Avro.html). Avro's most desirable features, from the perspective of Onda, was its compression and "random" row access. However, early tests indicated that neither of those features worked particularly well for signals of interest compared to domain-specific seekable compression formats like FLAC.
 
-- EDF/MEF/etc.: Onda was originally motivated by bulk electrophysiological dataset manipulation, a domain in which there are many different recording file formats that are all generally designed to support a one-file-per-recording use case and are constrained to certain domain-specific assumptions (e.g. specific bit depth assumptions, annotations stored within signal artifacts, etc.). Technically, since Onda itself is agnostic to choice of file formats used for signal serialization, one could store Onda sample data in MEF/EDF.
+- EDF/MEF/etc.: Onda was originally motivated by bulk electrophysiological dataset manipulation, a domain in which there are many different recording file formats that are all generally designed to support a one-file-per-recording use case and are constrained to certain domain-specific assumptions (e.g. specific bit depth assumptions, annotations stored within signal artifacts, etc.). Technically, since Onda itself is agnostic to choice of file formats used for signal serialization, one could store Onda sample data in EDF/MEF.
 
 - BIDS: BIDS is an alternative option for storing neuroscience datasets. As mentioned above, Onda's original motivation is electrophysiological dataset manipulation, so BIDS appeared to be a highly relevant candidate. Unfortunately, BIDS restricts EEG data to [very specific file formats](https://bids-specification.readthedocs.io/en/stable/04-modality-specific-files/03-electroencephalography.html#eeg-recording-data) and also does not account for the plurality of LPCM-encodable signals that Onda seeks to handle generically.
 
-- JSON: In early Onda implementations, JSON was used to serialize the `recordings` metadata file. JSON has the advantage of being ubiquitous, simple, flexible, and human-readable, but the performance overhead of textual decoding/encoding was greater than desired for datasets with lots of annotations. In comparison, switching to MessagePack yielded a ~3x performance increase in (de)serialization for practical usage.
+- MessagePack: Before v0.5.0, the Onda format used MessagePack to store all signal/annotation metadata. See [this issue](https://github.com/beacon-biosignals/OndaFormat/issues/25) for background on the switch to Arrow.
 
-- BSON: BSON was considered as a potential serialization format for the `recordings` metadata file. Ultimately, BSON's relative complexity and dissimilarity to JSON were both considered significant downsides compared to MessagePack.
+- JSON: In early Onda implementations, JSON was used to serialize signal/annotation metadata. While JSON has the advantage of being ubiquitous/simple/flexible/human-readable, the performance overhead of textual decoding/encoding was greater than desired for datasets with lots of annotations. In comparison, switching to MessagePack yielded a ~3x performance increase in (de)serialization for practical usage. The subsequent switch from MessagePack to Arrow in v0.5.0 of the Onda format yielded even greater (de)serialization improvements.
 
-- ProtoBuf/FlatBuffers/etc.: These formats were considered as potential serialization formats for the `recordings` metadata file. These tools were ultimately ruled out in favor of MessagePack, which is much easier to parse (as it doesn't require intermediate code generation and is quite similar to JSON) and was found to be nearly as performant for Onda's particular use case.
-
-- Feather: Feather was briefly explored until it became clear that the format is planned to be deprecated in favor of ["Arrow files"](https://github.com/apache/arrow/blob/5e639059a0330cad256703516996fbed11c8fd83/site/faq.md#what-is-the-difference-between-apache-arrow-and-apache-parquet), which might be rebranded to ["Feather 2.0"](https://issues.apache.org/jira/browse/ARROW-5510) in the future. Future versions of Onda will likely reconsider Arrow as a potential serialization format for the `recordings` metadata file once Arrow has achieved a stable 1.0 release.
-
-- Arrow/Parquet: Early versions of Onda stored `recordings` metadata in Arrow tables serialized to disk as Parquet. Internal usage of these early Onda versions revealed that the C++ implementations of Arrow/Parquet were extremely performant, but that [some features were incomplete](https://issues.apache.org/jira/browse/ARROW-1644) and other front-end bindings/implementations generally lagged behind the C++ implementation in terms of feature parity.
+- BSON: BSON was considered as a potential serialization format for signal/annotation metadata. Before v0.5.0 of the Onda format, MessagePack was chosen over BSON due to the latter's relative complexity compared to the former. After v0.5.0 of the Onda format, BSON remains less preferable than Arrow from a tabular/columnar data storage perspective.
