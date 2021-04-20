@@ -115,7 +115,7 @@ An example of an `*.onda.annotations.arrow` table (whose `value` column happens 
 
 A `*.onda.signals.arrow` file contains an Arrow table whose first 11 columns are:
 
-1. `recording` (128-bit `FixedSizeBinary`): The UUID identifying the recording with which the annotation is associated.
+1. `recording` (128-bit `FixedSizeBinary`): The UUID identifying the recording with which the signal is associated.
 2. `file_path` (`Utf8`): A string identifying the location of the signal's associated sample data file. This string must either be a [valid URI](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier) or a relative file path (specifically, relative to the location of the `*.onda.signals.arrow` file itself).
 3. `file_format` (`Utf8`): A string identifying the format of the signal's associated sample data file. All Onda readers/writers must support the following file formats (and may define and support additional values as desired):
     - `"lpcm"`: signals are stored in raw interleaved LPCM format (see format description below).
