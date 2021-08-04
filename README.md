@@ -1,3 +1,5 @@
+**THIS REPO IS ARCHIVED, AND ONLY AVAILABLE FOR HISTORICAL PURPOSES. YOU'RE PROBABLY LOOKING FOR https://github.com/beacon-biosignals/Onda.jl.**
+
 # Onda Dataset Format
 
 **Onda** is a lightweight format for storing and manipulating sets of multi-sensor, multi-channel, LPCM-encodable, annotated, time-series recordings.
